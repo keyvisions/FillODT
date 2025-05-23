@@ -5,4 +5,9 @@
     <TargetFramework>net9.0</TargetFramework> <!-- or net5.0, net7.0 depending on your SDK -->
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="QRCoder" Version="1.6.0" />
+    <PackageReference Include="System.Drawing.Common" Version="9.0.5" />
+  </ItemGroup>
+
 </Project>

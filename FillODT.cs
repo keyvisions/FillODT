@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
 using System.IO.Compression;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using QRCoder;
 
 namespace OdtPlaceholderReplacer
 {
@@ -34,7 +36,7 @@ namespace OdtPlaceholderReplacer
 					case "--pdf":
 						convertToPdf = true;
 						break;
-					case "--overwrite": // renamed from --override
+					case "--overwrite":
 						overrideDest = true;
 						break;
 					case "--novalue":
@@ -98,6 +100,12 @@ namespace OdtPlaceholderReplacer
 			string contentFilePath = Path.Combine(extractedFolder, "content.xml");
 			ReplacePlaceholders(contentFilePath, placeholders, noValueReplacement);
 
+			string stylesFilePath = Path.Combine(extractedFolder, "styles.xml");
+			if (File.Exists(stylesFilePath))
+			{
+				ReplacePlaceholders(stylesFilePath, placeholders, noValueReplacement);
+			}
+
 			// Create new ODT file
 			CreateOdtFromExtracted(extractedFolder, outputOdtFilePath);
 
@@ -133,6 +141,76 @@ namespace OdtPlaceholderReplacer
 		static void ReplacePlaceholders(string filePath, Dictionary<string, object> placeholders, string noValueReplacement)
 		{
 			string content = File.ReadAllText(filePath);
+
+			// Add this at the start of ReplacePlaceholders
+			string picturesDir = Path.Combine(Path.GetDirectoryName(filePath), "Pictures");
+			if (!Directory.Exists(picturesDir))
+				Directory.CreateDirectory(picturesDir);
+
+			foreach (var placeholder in placeholders)
+			{
+				if (Regex.IsMatch(placeholder.Key, @"^image\d+(\.path|\.height)?$", RegexOptions.IgnoreCase))
+				{
+					string imagePath = placeholder.Value.ToString();
+					string imageFileName;
+					string destImagePath;
+					string height = null;
+					string width = null;
+
+					if (placeholder.Value is JsonElement imgElem && imgElem.ValueKind == JsonValueKind.Object)
+					{
+						if (imgElem.TryGetProperty("path", out var pathElem))
+							imagePath = pathElem.GetString();
+						if (imgElem.TryGetProperty("height", out var heightElem))
+							height = heightElem.GetString();
+						if (imgElem.TryGetProperty("width", out var widthElem))
+							width = widthElem.GetString();
+					}
+					else
+					{
+						imagePath = placeholder.Value.ToString();
+					}
+
+					if (imagePath.StartsWith("qrcode://", StringComparison.OrdinalIgnoreCase))
+					{
+						string qrCodePath = Path.Combine(Path.GetTempPath(), $"{placeholder.Key}.png");
+
+						// Generate QR code if the image file does not exist
+						using QRCoder.QRCodeGenerator qrGenerator = new QRCoder.QRCodeGenerator();
+						using QRCoder.QRCodeData qrCodeData = qrGenerator.CreateQrCode(imagePath.Substring(9), QRCoder.QRCodeGenerator.ECCLevel.Q);
+						using QRCoder.BitmapByteQRCode qrCode = new QRCoder.BitmapByteQRCode(qrCodeData);
+						using (MemoryStream ms = new MemoryStream(qrCode.GetGraphic(20)))
+						using (Bitmap qrCodeImage = new Bitmap(ms))
+						{
+							imageFileName = $"{placeholder.Key.Split(".")[0]}_qrcode.png";
+							destImagePath = Path.Combine(picturesDir, imageFileName);
+							qrCodeImage.Save(destImagePath, System.Drawing.Imaging.ImageFormat.Png);
+						}
+					}
+					else if (File.Exists(imagePath))
+					{
+						imageFileName = Path.GetFileName(imagePath);
+						destImagePath = Path.Combine(picturesDir, imageFileName);
+						File.Copy(imagePath, destImagePath, true);
+					}
+					else
+					{
+						content = content.Replace($"@@{placeholder.Key}", "[Image not found]");
+						continue;
+					}
+
+					string odtImagePath = "Pictures/" + imageFileName;
+					string heightAttr = !string.IsNullOrEmpty(height) ? $"svg:height=\"{ConvertToOdtLength(height)}\"" : "";
+					string widthAttr = !string.IsNullOrEmpty(width) ? $"svg:width=\"{ConvertToOdtLength(width)}\"" : "";
+
+					string imageXml =
+						$@"<draw:frame draw:name=""{placeholder.Key.Split(".")[0]}"" text:anchor-type=""as-char"" draw:z-index=""0"" {widthAttr} {heightAttr}>
+							<draw:image xlink:href=""{odtImagePath}"" xlink:type=""simple"" xlink:show=""embed"" xlink:actuate=""onLoad""/>
+						</draw:frame>";
+
+					content = content.Replace($"@@{placeholder.Key}", imageXml);
+				}
+			}
 
 			// Handle array placeholders in tables
 			foreach (var placeholder in placeholders)
@@ -291,6 +369,27 @@ namespace OdtPlaceholderReplacer
 			html = Regex.Replace(html, @"<(?!/?text:)[^>]+>", string.Empty);
 
 			return html;
+		}
+
+		static string ConvertToOdtLength(string value)
+		{
+			if (string.IsNullOrEmpty(value)) return null;
+			value = value.Trim().ToLowerInvariant();
+			if (value.EndsWith("px"))
+			{
+				if (double.TryParse(value.Replace("px", ""), out double px))
+				{
+					double cm = px * 0.0352778;
+					return $"{cm:0.###}cm";
+				}
+			}
+			// Allow cm, mm, in, pt as-is
+			if (value.EndsWith("cm") || value.EndsWith("mm") || value.EndsWith("in") || value.EndsWith("pt"))
+				return value;
+			// Default: treat as cm
+			if (double.TryParse(value, out double val))
+				return $"{val}cm";
+			return value;
 		}
 	}
 }

@@ -12,3 +12,10 @@ D:\Projects\FillODT\obj\Debug\net9.0\refint\FillODT.dll
 D:\Projects\FillODT\obj\Debug\net9.0\FillODT.pdb
 D:\Projects\FillODT\obj\Debug\net9.0\FillODT.genruntimeconfig.cache
 D:\Projects\FillODT\obj\Debug\net9.0\ref\FillODT.dll
+D:\Projects\FillODT\obj\Debug\net9.0\FillODT.csproj.AssemblyReference.cache
+D:\Projects\FillODT\bin\Debug\net9.0\Microsoft.Win32.SystemEvents.dll
+D:\Projects\FillODT\bin\Debug\net9.0\QRCoder.dll
+D:\Projects\FillODT\bin\Debug\net9.0\System.Drawing.Common.dll
+D:\Projects\FillODT\bin\Debug\net9.0\System.Private.Windows.Core.dll
+D:\Projects\FillODT\bin\Debug\net9.0\runtimes\win\lib\net9.0\Microsoft.Win32.SystemEvents.dll
+D:\Projects\FillODT\obj\Debug\net9.0\FillODT.csproj.Up2Date

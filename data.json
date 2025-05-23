@@ -4,6 +4,8 @@
 	"age": 30,
 	"email": "john.doe@company.com",
 	"phone": "+1234567890",
+	"image1": "qrcode://1234567890",
+	"image2": { "path": ".\\media\\logo_light.png", "height": "2" },
 	"address": {
 		"street": "123 Main St",
 		"city": "<b>Anytown</b>",
@@ -19,6 +21,21 @@
 		{
 			"company": "Web Innovations",
 			"position": "Frontend Developer",
+			"duration": "1 year"
+		},
+		{
+			"company": "Data Corp",
+			"position": "Data Analyst",
+			"duration": "6 months"
+		},
+		{
+			"company": "Cloud Services",
+			"position": "DevOps Engineer",
+			"duration": "1 year"
+		},
+		{
+			"company": "AI Solutions",
+			"position": "Machine Learning Engineer",
 			"duration": "1 year"
 		}
 	]
