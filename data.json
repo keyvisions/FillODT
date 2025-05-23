@@ -1,0 +1,24 @@
+{
+	"name": "John Doe",
+	"age": 30,
+	"email": "john.doe@company.com",
+	"phone": "+1234567890",
+	"address": {
+		"street": "123 Main St",
+		"city": "Anytown",
+		"state": "CA",
+		"zip": "12345"
+	},
+	"jobs": [
+		{
+			"company": "Tech Solutions",
+			"position": "Software Engineer",
+			"duration": "2 years"
+		},
+		{
+			"company": "Web Innovations",
+			"position": "Frontend Developer",
+			"duration": "1 year"
+		}
+	]
+}

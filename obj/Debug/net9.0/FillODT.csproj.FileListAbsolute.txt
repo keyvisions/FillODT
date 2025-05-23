@@ -1,0 +1,14 @@
+D:\Projects\FillODT\bin\Debug\net9.0\FillODT.exe
+D:\Projects\FillODT\bin\Debug\net9.0\FillODT.deps.json
+D:\Projects\FillODT\bin\Debug\net9.0\FillODT.runtimeconfig.json
+D:\Projects\FillODT\bin\Debug\net9.0\FillODT.dll
+D:\Projects\FillODT\bin\Debug\net9.0\FillODT.pdb
+D:\Projects\FillODT\obj\Debug\net9.0\FillODT.GeneratedMSBuildEditorConfig.editorconfig
+D:\Projects\FillODT\obj\Debug\net9.0\FillODT.AssemblyInfoInputs.cache
+D:\Projects\FillODT\obj\Debug\net9.0\FillODT.AssemblyInfo.cs
+D:\Projects\FillODT\obj\Debug\net9.0\FillODT.csproj.CoreCompileInputs.cache
+D:\Projects\FillODT\obj\Debug\net9.0\FillODT.dll
+D:\Projects\FillODT\obj\Debug\net9.0\refint\FillODT.dll
+D:\Projects\FillODT\obj\Debug\net9.0\FillODT.pdb
+D:\Projects\FillODT\obj\Debug\net9.0\FillODT.genruntimeconfig.cache
+D:\Projects\FillODT\obj\Debug\net9.0\ref\FillODT.dll
