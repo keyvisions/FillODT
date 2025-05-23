@@ -287,8 +287,8 @@ namespace OdtPlaceholderReplacer
 			html = Regex.Replace(html, @"<ul>(.*?)</ul>", "<text:list>$1</text:list>", RegexOptions.IgnoreCase | RegexOptions.Singleline);
 			html = Regex.Replace(html, @"<li>(.*?)</li>", "<text:list-item><text:p>$1</text:p></text:list-item>", RegexOptions.IgnoreCase);
 
-			// Remove any other HTML tags (optional)
-			html = Regex.Replace(html, @"<[^>]+>", string.Empty);
+			// Remove tags that do NOT start with <text:
+			html = Regex.Replace(html, @"<(?!/?text:)[^>]+>", string.Empty);
 
 			return html;
 		}

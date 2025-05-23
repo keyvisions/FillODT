@@ -13,7 +13,8 @@
 			"args": [
 				"--template", "template.odt",
 				"--json", "data.json",
-				"--destfile", "document.odt"
+				"--destfile", "document.odt",
+				"--overwrite"
 			],
             "cwd": "${workspaceFolder}",
             "console": "internalConsole",
