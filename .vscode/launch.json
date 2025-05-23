@@ -5,20 +5,25 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
-			"name": "C#: FillODT Debug",
-			"type": "dotnet",
+			"name": ".NET Core Launch (console)",
+			"type": "coreclr",
 			"request": "launch",
-			"projectPath": "${workspaceFolder}/FillODT.csproj"
-		},
-		{
-			"name": "C#: FillODT Release",
-			"type": "dotnet",
-			"request": "launch",
-			"projectPath": "${workspaceFolder}/FillODT.csproj",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/bin/Debug/net9.0/FillODT.dll",
 			"args": [
-				"--configuration",
-				"Release"
-			]
-		}
+				"--template", "template.odt",
+				"--json", "data.json",
+				"--destfile", "document.odt"
+			],
+            "cwd": "${workspaceFolder}",
+            "console": "internalConsole",
+            "stopAtEntry": false
+		},
+        {
+            "name": ".NET Core Attach",
+            "type": "coreclr",
+            "request": "attach",
+            "processId": "${command:pickProcess}"
+        }
 	]
 }
