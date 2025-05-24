@@ -7,8 +7,10 @@ using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Xml.Linq;
 using QRCoder;
 
+// dotnet publish -c Release -r win-x64 --self-contained true
 namespace OdtPlaceholderReplacer
 {
 	class Program
@@ -49,9 +51,7 @@ namespace OdtPlaceholderReplacer
 
 			// Force output file to end with .odt
 			if (!string.IsNullOrEmpty(outputOdtFilePath) && !outputOdtFilePath.EndsWith(".odt", StringComparison.OrdinalIgnoreCase))
-			{
 				outputOdtFilePath += ".odt";
-			}
 
 			if (string.IsNullOrEmpty(odtFilePath) || string.IsNullOrEmpty(jsonFilePath) || string.IsNullOrEmpty(outputOdtFilePath))
 			{
@@ -73,9 +73,7 @@ namespace OdtPlaceholderReplacer
 				return;
 			}
 			else if (File.Exists(outputOdtFilePath) && overrideDest)
-			{
 				File.Delete(outputOdtFilePath);
-			}
 
 			if (odtFilePath.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
 			{
@@ -97,13 +95,9 @@ namespace OdtPlaceholderReplacer
 				&& elem.ValueKind == JsonValueKind.True)
 			{
 				if (outputOdtFilePath.EndsWith(".odt", StringComparison.OrdinalIgnoreCase))
-				{
 					outputOdtFilePath = outputOdtFilePath.Substring(0, outputOdtFilePath.Length - 4) + "__.odt";
-				}
 				else
-				{
 					outputOdtFilePath += "__";
-				}
 			}
 
 			// Extract ODT file
@@ -113,11 +107,13 @@ namespace OdtPlaceholderReplacer
 			string contentFilePath = Path.Combine(extractedFolder, "content.xml");
 			ReplacePlaceholders(contentFilePath, placeholders, noValueReplacement);
 
+			// Replace placeholders in styles.xml
 			string stylesFilePath = Path.Combine(extractedFolder, "styles.xml");
 			if (File.Exists(stylesFilePath))
-			{
 				ReplacePlaceholders(stylesFilePath, placeholders, noValueReplacement);
-			}
+
+			// Update manifest with images
+			UpdateManifestWithImages(extractedFolder);
 
 			// Create new ODT file
 			CreateOdtFromExtracted(extractedFolder, outputOdtFilePath);
@@ -129,9 +125,7 @@ namespace OdtPlaceholderReplacer
 				Console.WriteLine($"PDF created and ODT deleted: {Path.ChangeExtension(outputOdtFilePath, ".pdf")}");
 			}
 			else
-			{
 				Console.WriteLine($"Output ODT file created at: {outputOdtFilePath}");
-			}
 		}
 
 		static Dictionary<string, object> ReadJsonFile(string jsonFilePath)
@@ -144,9 +138,7 @@ namespace OdtPlaceholderReplacer
 		{
 			string extractPath = Path.Combine(Path.GetTempPath(), Path.GetFileNameWithoutExtension(odtFilePath));
 			if (Directory.Exists(extractPath))
-			{
 				Directory.Delete(extractPath, true);
-			}
 			ZipFile.ExtractToDirectory(odtFilePath, extractPath);
 			return extractPath;
 		}
@@ -290,33 +282,46 @@ namespace OdtPlaceholderReplacer
 
 					// Check for HTML and convert
 					if (!string.IsNullOrEmpty(value) && Regex.IsMatch(value, @"<[^>]+>"))
-					{
 						value = HtmlToOdtXml(value);
-					}
 
 					content = content.Replace($"@@{key}", value);
 				}
 			}
 
+			// Replace any remaining @@placeholder patterns with the noValueReplacement string
 			if (!string.IsNullOrEmpty(noValueReplacement))
-			{
-				// Replace any remaining @@placeholder patterns with the noValueReplacement string
 				content = Regex.Replace(content, @"@@[a-zA-Z0-9_.]+", noValueReplacement);
-			}
 
 			File.WriteAllText(filePath, content);
 		}
 
 		static void CreateOdtFromExtracted(string extractedFolder, string outputOdtFilePath)
 		{
-			// Check if the output file already exists and delete it
-			if (File.Exists(outputOdtFilePath))
-			{
-				File.Delete(outputOdtFilePath);
-			}
+			string mimetypePath = Path.Combine(extractedFolder, "mimetype");
+			if (!File.Exists(mimetypePath))
+				throw new Exception("mimetype file missing in extracted folder.");
 
-			// Create the new ODT file from the extracted folder
-			ZipFile.CreateFromDirectory(extractedFolder, outputOdtFilePath);
+			if (File.Exists(outputOdtFilePath))
+				File.Delete(outputOdtFilePath);
+
+			using (var zip = new FileStream(outputOdtFilePath, FileMode.Create))
+			using (var archive = new ZipArchive(zip, ZipArchiveMode.Create))
+			{
+				// Add mimetype file first, uncompressed
+				var mimetypeEntry = archive.CreateEntry("mimetype", CompressionLevel.NoCompression);
+				using (var entryStream = mimetypeEntry.Open())
+				using (var fileStream = File.OpenRead(mimetypePath))
+					fileStream.CopyTo(entryStream);
+
+				// Add all other files and folders, compressed
+				foreach (var file in Directory.GetFiles(extractedFolder, "*", SearchOption.AllDirectories))
+				{
+					string relPath = Path.GetRelativePath(extractedFolder, file).Replace("\\", "/");
+					if (relPath == "mimetype") continue; // already added
+
+					archive.CreateEntryFromFile(file, relPath, CompressionLevel.Optimal);
+				}
+			}
 		}
 
 		static Dictionary<string, object> FlattenPlaceholders(Dictionary<string, object> dict, string parentKey = "")
@@ -331,19 +336,13 @@ namespace OdtPlaceholderReplacer
 					{
 						var nested = JsonSerializer.Deserialize<Dictionary<string, object>>(jsonElement.GetRawText());
 						foreach (var nestedKvp in FlattenPlaceholders(nested, key))
-						{
 							flatDict[nestedKvp.Key] = nestedKvp.Value;
-						}
 					}
 					else
-					{
 						flatDict[key] = jsonElement;
-					}
 				}
 				else
-				{
 					flatDict[key] = kvp.Value;
-				}
 			}
 			return flatDict;
 		}
@@ -360,19 +359,8 @@ namespace OdtPlaceholderReplacer
 			process.StartInfo.RedirectStandardError = true;
 			process.Start();
 
-			string output = process.StandardOutput.ReadToEnd();
-			string error = process.StandardError.ReadToEnd();
-			process.WaitForExit();
-
-			Console.WriteLine(process.StartInfo.Arguments);
-			Console.WriteLine(output);
-			Console.WriteLine("LibreOffice error:");
-			Console.WriteLine(error);
-
 			if (!File.Exists(pdfPath))
-			{
 				throw new Exception("PDF was not created. See LibreOffice output above.");
-			}
 		}
 		// Converts a limited set of HTML tags to ODT XML equivalents
 		static string HtmlToOdtXml(string html)
@@ -420,6 +408,55 @@ namespace OdtPlaceholderReplacer
 			if (double.TryParse(value, out double val))
 				return $"{val}cm";
 			return value;
+		}
+
+		// Call this after all images are written, before zipping the ODT
+		static void UpdateManifestWithImages(string extractedFolder)
+		{
+			string manifestPath = Path.Combine(extractedFolder, "META-INF", "manifest.xml");
+			if (!File.Exists(manifestPath)) return;
+
+			XNamespace manifest = "urn:oasis:names:tc:opendocument:xmlns:manifest:1.0";
+			var doc = XDocument.Load(manifestPath);
+
+			// Get all image files in Pictures/
+			string picturesDir = Path.Combine(extractedFolder, "Pictures");
+			if (!Directory.Exists(picturesDir)) return;
+			var imageFiles = Directory.GetFiles(picturesDir);
+
+			// Get the root <manifest:manifest> element
+			var root = doc.Root;
+			foreach (var imagePath in imageFiles)
+			{
+				string relPath = "Pictures/" + Path.GetFileName(imagePath);
+				string mediaType = GetMediaTypeFromExtension(Path.GetExtension(imagePath));
+
+				// Check if already present
+				bool exists = root.Elements(manifest + "file-entry")
+					.Any(e => (string)e.Attribute(manifest + "full-path") == relPath);
+
+				if (!exists)
+					root.Add(new XElement(manifest + "file-entry",
+						new XAttribute(manifest + "media-type", mediaType),
+						new XAttribute(manifest + "full-path", relPath)
+					));
+			}
+			doc.Save(manifestPath);
+		}
+
+		// Helper to get media type from file extension
+		static string GetMediaTypeFromExtension(string ext)
+		{
+			switch (ext.ToLowerInvariant())
+			{
+				case ".png": return "image/png";
+				case ".jpg":
+				case ".jpeg": return "image/jpeg";
+				case ".gif": return "image/gif";
+				case ".svg": return "image/svg+xml";
+				case ".bmp": return "image/bmp";
+				default: return "application/octet-stream";
+			}
 		}
 	}
 }
