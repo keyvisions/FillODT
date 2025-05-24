@@ -1,5 +1,19 @@
+# Ignore build and IDE folders
 bin/
 obj/
-.vscode
+.vscode/
+
+# Ignore generated and temporary files
 document.odt
 *__.odt
+
+# Allow only these file extensions in the repo:
+!*.cs
+!*.json
+!*.md
+!*.gitignore
+!*.sln
+!*.csproj
+
+# Ignore everything else by default (optional strict mode)
+*
