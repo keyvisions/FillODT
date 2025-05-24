@@ -5,7 +5,7 @@
 	"email": "john.doe@company.com",
 	"phone": "+1234567890",
 	"image1": "qrcode://1234567890",
-	"image2": { "path": ".\\media\\logo_light.png", "height": "2" },
+	"image2": "https://www.keyvisions.it/wp-content/uploads/2018/03/logo.svg",
 	"address": {
 		"street": "123 Main St",
 		"city": "<b>Anytown</b>",

@@ -10,9 +10,6 @@
 
 This project was developed with the assistance of GitHub Copilot.
 
-## Publish the Project
-$ dotnet publish -c Release -r win-x64 --self-contained true
-
 ## Run the App
 $ FillODT.exe --template template.odt --json data.json --destfile output.odt
 

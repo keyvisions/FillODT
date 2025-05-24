@@ -1,3 +1,5 @@
-/bin
-/obj
+bin/
+obj/
+.vscode
 document.odt
+*__.odt

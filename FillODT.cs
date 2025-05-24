@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.IO.Compression;
+using System.Net.Http;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using QRCoder;
@@ -142,14 +143,15 @@ namespace OdtPlaceholderReplacer
 		{
 			string content = File.ReadAllText(filePath);
 
-			// Add this at the start of ReplacePlaceholders
 			string picturesDir = Path.Combine(Path.GetDirectoryName(filePath), "Pictures");
 			if (!Directory.Exists(picturesDir))
 				Directory.CreateDirectory(picturesDir);
 
 			foreach (var placeholder in placeholders)
 			{
-				if (Regex.IsMatch(placeholder.Key, @"^image\d+(\.path|\.height)?$", RegexOptions.IgnoreCase))
+				// Only process image placeholders if the placeholder exists in the template
+				if (Regex.IsMatch(placeholder.Key, @"^image\d+(\.path|\.height)?$", RegexOptions.IgnoreCase)
+					&& content.Contains($"@@{placeholder.Key.Split('.')[0]}"))
 				{
 					string imagePath = placeholder.Value.ToString();
 					string imageFileName;
@@ -171,18 +173,26 @@ namespace OdtPlaceholderReplacer
 						imagePath = placeholder.Value.ToString();
 					}
 
-					if (imagePath.StartsWith("qrcode://", StringComparison.OrdinalIgnoreCase))
+					// Download image if it's an HTTPS URL
+					if (imagePath.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
 					{
-						string qrCodePath = Path.Combine(Path.GetTempPath(), $"{placeholder.Key}.png");
-
-						// Generate QR code if the image file does not exist
+						using (var httpClient = new HttpClient())
+						{
+							var imageBytes = httpClient.GetByteArrayAsync(imagePath).Result;
+							imageFileName = $"{placeholder.Key.Split('.')[0]}_{Path.GetFileName(new Uri(imagePath).AbsolutePath)}";
+							destImagePath = Path.Combine(picturesDir, imageFileName);
+							File.WriteAllBytes(destImagePath, imageBytes);
+						}
+					}
+					else if (imagePath.StartsWith("qrcode://", StringComparison.OrdinalIgnoreCase))
+					{
 						using QRCoder.QRCodeGenerator qrGenerator = new QRCoder.QRCodeGenerator();
 						using QRCoder.QRCodeData qrCodeData = qrGenerator.CreateQrCode(imagePath.Substring(9), QRCoder.QRCodeGenerator.ECCLevel.Q);
 						using QRCoder.BitmapByteQRCode qrCode = new QRCoder.BitmapByteQRCode(qrCodeData);
 						using (MemoryStream ms = new MemoryStream(qrCode.GetGraphic(20)))
 						using (Bitmap qrCodeImage = new Bitmap(ms))
 						{
-							imageFileName = $"{placeholder.Key.Split(".")[0]}_qrcode.png";
+							imageFileName = $"{placeholder.Key.Split('.')[0]}_qrcode.png";
 							destImagePath = Path.Combine(picturesDir, imageFileName);
 							qrCodeImage.Save(destImagePath, System.Drawing.Imaging.ImageFormat.Png);
 						}
@@ -204,7 +214,7 @@ namespace OdtPlaceholderReplacer
 					string widthAttr = !string.IsNullOrEmpty(width) ? $"svg:width=\"{ConvertToOdtLength(width)}\"" : "";
 
 					string imageXml =
-						$@"<draw:frame draw:name=""{placeholder.Key.Split(".")[0]}"" text:anchor-type=""as-char"" draw:z-index=""0"" {widthAttr} {heightAttr}>
+						$@"<draw:frame draw:name=""{placeholder.Key.Split('.')[0]}"" text:anchor-type=""as-char"" draw:z-index=""0"" {widthAttr} {heightAttr}>
 							<draw:image xlink:href=""{odtImagePath}"" xlink:type=""simple"" xlink:show=""embed"" xlink:actuate=""onLoad""/>
 						</draw:frame>";
 
@@ -334,15 +344,29 @@ namespace OdtPlaceholderReplacer
 		// Add this method:
 		static void ConvertOdtToPdf(string odtPath)
 		{
-			// Requires LibreOffice installed and in PATH
 			string pdfPath = Path.ChangeExtension(odtPath, ".pdf");
 			var process = new System.Diagnostics.Process();
 			process.StartInfo.FileName = "soffice";
 			process.StartInfo.Arguments = $"--headless --convert-to pdf \"{odtPath}\" --outdir \"{Path.GetDirectoryName(odtPath)}\"";
 			process.StartInfo.CreateNoWindow = true;
 			process.StartInfo.UseShellExecute = false;
+			process.StartInfo.RedirectStandardOutput = true;
+			process.StartInfo.RedirectStandardError = true;
 			process.Start();
+
+			string output = process.StandardOutput.ReadToEnd();
+			string error = process.StandardError.ReadToEnd();
 			process.WaitForExit();
+
+			Console.WriteLine(process.StartInfo.Arguments);
+			Console.WriteLine(output);
+			Console.WriteLine("LibreOffice error:");
+			Console.WriteLine(error);
+
+			if (!File.Exists(pdfPath))
+			{
+				throw new Exception("PDF was not created. See LibreOffice output above.");
+			}
 		}
 		// Converts a limited set of HTML tags to ODT XML equivalents
 		static string HtmlToOdtXml(string html)
