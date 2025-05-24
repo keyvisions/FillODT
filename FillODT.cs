@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -74,6 +75,17 @@ namespace OdtPlaceholderReplacer
 			else if (File.Exists(outputOdtFilePath) && overrideDest)
 			{
 				File.Delete(outputOdtFilePath);
+			}
+
+			if (odtFilePath.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+			{
+				string tempTemplatePath = Path.Combine(Path.GetTempPath(), "template_downloaded.odt");
+				using (var httpClient = new HttpClient())
+				{
+					var odtBytes = httpClient.GetByteArrayAsync(odtFilePath).Result;
+					File.WriteAllBytes(tempTemplatePath, odtBytes);
+				}
+				odtFilePath = tempTemplatePath;
 			}
 
 			// Read JSON file
@@ -150,27 +162,24 @@ namespace OdtPlaceholderReplacer
 			foreach (var placeholder in placeholders)
 			{
 				// Only process image placeholders if the placeholder exists in the template
-				if (Regex.IsMatch(placeholder.Key, @"^image\d+(\.path|\.height)?$", RegexOptions.IgnoreCase)
+				if (Regex.IsMatch(placeholder.Key, @"^image\d+(\.path)?$", RegexOptions.IgnoreCase)
 					&& content.Contains($"@@{placeholder.Key.Split('.')[0]}"))
 				{
+					string key = placeholder.Key.Split('.')[0];
 					string imagePath = placeholder.Value.ToString();
 					string imageFileName;
 					string destImagePath;
 					string height = null;
 					string width = null;
 
-					if (placeholder.Value is JsonElement imgElem && imgElem.ValueKind == JsonValueKind.Object)
+					if (placeholder.Key.Contains('.'))
 					{
-						if (imgElem.TryGetProperty("path", out var pathElem))
-							imagePath = pathElem.GetString();
-						if (imgElem.TryGetProperty("height", out var heightElem))
-							height = heightElem.GetString();
-						if (imgElem.TryGetProperty("width", out var widthElem))
-							width = widthElem.GetString();
-					}
-					else
-					{
-						imagePath = placeholder.Value.ToString();
+						if (placeholders.ContainsKey($"{key}.path"))
+							imagePath = placeholders[$"{key}.path"].ToString();
+						if (placeholders.ContainsKey($"{key}.height"))
+							height = placeholders[$"{key}.height"].ToString();
+						if (placeholders.ContainsKey($"{key}.width"))
+							width = placeholders[$"{key}.width"].ToString();
 					}
 
 					// Download image if it's an HTTPS URL
@@ -179,7 +188,7 @@ namespace OdtPlaceholderReplacer
 						using (var httpClient = new HttpClient())
 						{
 							var imageBytes = httpClient.GetByteArrayAsync(imagePath).Result;
-							imageFileName = $"{placeholder.Key.Split('.')[0]}_{Path.GetFileName(new Uri(imagePath).AbsolutePath)}";
+							imageFileName = $"{key}_{Path.GetFileName(new Uri(imagePath).AbsolutePath)}";
 							destImagePath = Path.Combine(picturesDir, imageFileName);
 							File.WriteAllBytes(destImagePath, imageBytes);
 						}
@@ -192,7 +201,7 @@ namespace OdtPlaceholderReplacer
 						using (MemoryStream ms = new MemoryStream(qrCode.GetGraphic(20)))
 						using (Bitmap qrCodeImage = new Bitmap(ms))
 						{
-							imageFileName = $"{placeholder.Key.Split('.')[0]}_qrcode.png";
+							imageFileName = $"{key}_qrcode.png";
 							destImagePath = Path.Combine(picturesDir, imageFileName);
 							qrCodeImage.Save(destImagePath, System.Drawing.Imaging.ImageFormat.Png);
 						}
@@ -210,15 +219,13 @@ namespace OdtPlaceholderReplacer
 					}
 
 					string odtImagePath = "Pictures/" + imageFileName;
-					string heightAttr = !string.IsNullOrEmpty(height) ? $"svg:height=\"{ConvertToOdtLength(height)}\"" : "";
-					string widthAttr = !string.IsNullOrEmpty(width) ? $"svg:width=\"{ConvertToOdtLength(width)}\"" : "";
+					string heightAttr = !string.IsNullOrEmpty(height) ? $" svg:height=\"{ConvertToOdtLength(height)}\"" : "";
+					string widthAttr = !string.IsNullOrEmpty(width) ? $" svg:width=\"{ConvertToOdtLength(width)}\"" : "";
 
 					string imageXml =
-						$@"<draw:frame draw:name=""{placeholder.Key.Split('.')[0]}"" text:anchor-type=""as-char"" draw:z-index=""0"" {widthAttr} {heightAttr}>
-							<draw:image xlink:href=""{odtImagePath}"" xlink:type=""simple"" xlink:show=""embed"" xlink:actuate=""onLoad""/>
-						</draw:frame>";
+						$@"<draw:frame draw:name=""{placeholder.Key.Split('.')[0]}"" text:anchor-type=""as-char"" draw:z-index=""0""{widthAttr}{heightAttr}><draw:image xlink:href=""{odtImagePath}"" xlink:type=""simple"" xlink:show=""embed"" xlink:actuate=""onLoad""/></draw:frame>";
 
-					content = content.Replace($"@@{placeholder.Key}", imageXml);
+					content = content.Replace($"@@{key}", imageXml);
 				}
 			}
 
@@ -341,7 +348,6 @@ namespace OdtPlaceholderReplacer
 			return flatDict;
 		}
 
-		// Add this method:
 		static void ConvertOdtToPdf(string odtPath)
 		{
 			string pdfPath = Path.ChangeExtension(odtPath, ".pdf");

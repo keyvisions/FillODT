@@ -4,7 +4,7 @@
 	"age": 30,
 	"email": "john.doe@company.com",
 	"phone": "+1234567890",
-	"image1": "qrcode://1234567890",
+	"image1": { "path": "qrcode://1234567890", "height": "2cm", "width": "2cm" },
 	"image2": "https://www.keyvisions.it/wp-content/uploads/2018/03/logo.svg",
 	"address": {
 		"street": "123 Main St",
