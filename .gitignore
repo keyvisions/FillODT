@@ -1,7 +1,6 @@
 # Ignore build and IDE folders
 bin/
 obj/
-.vscode/
 
 # Ignore generated and temporary files
 document.odt
