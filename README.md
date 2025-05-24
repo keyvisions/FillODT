@@ -8,6 +8,33 @@
 - Can output to PDF (requires LibreOffice).
 - Includes options for overwriting, empty placeholder replacement, and marking incomplete documents.
 
+## Image placeholder syntax
+
+The `@@imageN` placeholders in your ODT template can be replaced with:
+
+- **A local file:**  
+  Specify a path to an image file on disk.
+  ```json
+  "image1": "./media/photo.png"
+  ```
+
+- **A URL (https):**  
+  Provide an HTTPS URL to an image. The image will be downloaded automatically.
+  ```json
+  "image2": "https://example.com/image.jpg"
+  ```
+
+- **A QR code:**  
+  Use the `qrcode://` prefix followed by the text or URL you want encoded. A QR code image will be generated and inserted.
+  ```json
+  "image3": "qrcode://https://example.com"
+  ```
+
+You can also use an object to specify image size:
+```json
+"image4": { "path": "./media/photo.png", "height": "3cm" }
+```
+
 This project was developed with the assistance of GitHub Copilot.
 
 ## Run the App
