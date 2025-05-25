@@ -13,6 +13,7 @@ document.odt
 !*.gitignore
 !*.sln
 !*.csproj
+!*.png
 
 # Ignore everything else by default (optional strict mode)
 *

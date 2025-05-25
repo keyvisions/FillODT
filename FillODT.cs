@@ -249,7 +249,7 @@ namespace OdtPlaceholderReplacer {
 						continue;
 					}
 
-					// --- Aspect ratio logic ---
+					// Aspect ratio logic
 					if (string.IsNullOrEmpty(width) || string.IsNullOrEmpty(height)) {
 						try {
 							using (var img = Image.FromFile(destImagePath)) {
@@ -263,11 +263,11 @@ namespace OdtPlaceholderReplacer {
 
 								if (widthCm.HasValue && !heightCm.HasValue) {
 									heightCm = widthCm / aspect;
-									height = $"{heightCm:0.###}cm";
+									height = $"{heightCm.Value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)}cm";
 								}
 								else if (!widthCm.HasValue && heightCm.HasValue) {
 									widthCm = heightCm * aspect;
-									width = $"{widthCm:0.###}cm";
+									width = $"{widthCm.Value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)}cm";
 								}
 							}
 						}
@@ -275,7 +275,6 @@ namespace OdtPlaceholderReplacer {
 							Console.WriteLine($"Aspect ratio not applicable {destImagePath}");
 						}
 					}
-					// --- End aspect ratio logic ---
 
 					string odtImagePath = "Pictures/" + imageFileName;
 					string heightAttr = !string.IsNullOrEmpty(height) ? $" svg:height=\"{ConvertToOdtLength(height)}\"" : "";
