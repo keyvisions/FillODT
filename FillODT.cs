@@ -249,6 +249,34 @@ namespace OdtPlaceholderReplacer {
 						continue;
 					}
 
+					// --- Aspect ratio logic ---
+					if (string.IsNullOrEmpty(width) || string.IsNullOrEmpty(height)) {
+						try {
+							using (var img = Image.FromFile(destImagePath)) {
+								double aspect = (double)img.Width / img.Height;
+								double? widthCm = null, heightCm = null;
+
+								if (!string.IsNullOrEmpty(width))
+									widthCm = ParseToCm(width);
+								if (!string.IsNullOrEmpty(height))
+									heightCm = ParseToCm(height);
+
+								if (widthCm.HasValue && !heightCm.HasValue) {
+									heightCm = widthCm / aspect;
+									height = $"{heightCm:0.###}cm";
+								}
+								else if (!widthCm.HasValue && heightCm.HasValue) {
+									widthCm = heightCm * aspect;
+									width = $"{widthCm:0.###}cm";
+								}
+							}
+						}
+						catch (Exception) {
+							Console.WriteLine($"Aspect ratio not applicable {destImagePath}");
+						}
+					}
+					// --- End aspect ratio logic ---
+
 					string odtImagePath = "Pictures/" + imageFileName;
 					string heightAttr = !string.IsNullOrEmpty(height) ? $" svg:height=\"{ConvertToOdtLength(height)}\"" : "";
 					string widthAttr = !string.IsNullOrEmpty(width) ? $" svg:width=\"{ConvertToOdtLength(width)}\"" : "";
@@ -379,6 +407,7 @@ namespace OdtPlaceholderReplacer {
 			process.StartInfo.RedirectStandardOutput = true;
 			process.StartInfo.RedirectStandardError = true;
 			process.Start();
+			process.WaitForExit();
 		}
 
 		// Converts a limited set of HTML tags to ODT XML equivalents
@@ -468,6 +497,23 @@ namespace OdtPlaceholderReplacer {
 				case ".bmp": return "image/bmp";
 				default: return "application/octet-stream";
 			}
+		}
+
+		// Helper to parse px/cm/mm/in/pt to cm
+		static double ParseToCm(string value) {
+			value = value.Trim().ToLowerInvariant();
+			if (value.EndsWith("cm"))
+				return double.Parse(value.Replace("cm", ""), System.Globalization.CultureInfo.InvariantCulture);
+			if (value.EndsWith("mm"))
+				return double.Parse(value.Replace("mm", ""), System.Globalization.CultureInfo.InvariantCulture) / 10.0;
+			if (value.EndsWith("in"))
+				return double.Parse(value.Replace("in", ""), System.Globalization.CultureInfo.InvariantCulture) * 2.54;
+			if (value.EndsWith("pt"))
+				return double.Parse(value.Replace("pt", ""), System.Globalization.CultureInfo.InvariantCulture) * 0.0352778;
+			if (value.EndsWith("px"))
+				return double.Parse(value.Replace("px", ""), System.Globalization.CultureInfo.InvariantCulture) * 0.0352778;
+			// Default: treat as cm
+			return double.Parse(value, System.Globalization.CultureInfo.InvariantCulture);
 		}
 	}
 }
