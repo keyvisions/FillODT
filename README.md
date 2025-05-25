@@ -8,6 +8,8 @@
 - Can output to PDF (requires LibreOffice).
 - Includes options for overwriting, empty placeholder replacement, and marking incomplete documents.
 
+[Download the latest Windows executable](https://github.com/keyvisions/FillODT/releases/latest)
+
 ## Image placeholder syntax
 
 The `@@imageN` placeholders in your ODT template can be replaced with:
