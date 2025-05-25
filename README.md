@@ -10,6 +10,23 @@
 
 [Download the latest Windows executable](https://github.com/keyvisions/FillODT/releases/latest)
 
+---
+
+## Real-world Usage
+
+**FillODT** is also used as a backend tool in web servers to generate PDFs on demand for business documents such as:
+
+- Shipping labels
+- Plates
+- Certificates
+- Datasheets
+- Picking lists
+- ...and more
+
+This makes it ideal for automated document workflows, e-commerce, logistics, and manufacturing applications where dynamic PDF generation is required.
+
+---
+
 ## Image placeholder syntax
 
 The `@@imageN` placeholders in your ODT template can be replaced with:
