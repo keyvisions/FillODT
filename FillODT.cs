@@ -226,6 +226,7 @@ namespace OdtPlaceholderReplacer {
 							imageFileName = $"{key}_{Path.GetFileName(new Uri(imagePath).AbsolutePath)}";
 							destImagePath = Path.Combine(picturesDir, imageFileName);
 							File.WriteAllBytes(destImagePath, imageBytes);
+							TryResizeImage(destImagePath);
 						}
 					}
 					else if (imagePath.StartsWith("qrcode://", StringComparison.OrdinalIgnoreCase)) {
@@ -237,12 +238,14 @@ namespace OdtPlaceholderReplacer {
 							imageFileName = $"{key}_qrcode.png";
 							destImagePath = Path.Combine(picturesDir, imageFileName);
 							qrCodeImage.Save(destImagePath, System.Drawing.Imaging.ImageFormat.Png);
+							TryResizeImage(destImagePath);
 						}
 					}
 					else if (File.Exists(imagePath)) {
 						imageFileName = Path.GetFileName(imagePath);
 						destImagePath = Path.Combine(picturesDir, imageFileName);
 						File.Copy(imagePath, destImagePath, true);
+						TryResizeImage(destImagePath);
 					}
 					else {
 						content = content.Replace($"@@{placeholder.Key}", "[Image not found]");
@@ -513,6 +516,39 @@ namespace OdtPlaceholderReplacer {
 				return double.Parse(value.Replace("px", ""), System.Globalization.CultureInfo.InvariantCulture) * 0.0352778;
 			// Default: treat as cm
 			return double.Parse(value, System.Globalization.CultureInfo.InvariantCulture);
+		}
+
+		static Bitmap ResizeImage(Image image, int maxWidth, int maxHeight) {
+			double ratioX = (double)maxWidth / image.Width;
+			double ratioY = (double)maxHeight / image.Height;
+			double ratio = Math.Min(ratioX, ratioY);
+
+			int newWidth = (int)(image.Width * ratio);
+			int newHeight = (int)(image.Height * ratio);
+
+			var newImage = new Bitmap(newWidth, newHeight);
+			using (var graphics = Graphics.FromImage(newImage)) {
+				graphics.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighQuality;
+				graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+				graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
+				graphics.DrawImage(image, 0, 0, newWidth, newHeight);
+			}
+			return newImage;
+		}
+
+		static void TryResizeImage(string imagePath, int maxWidth = 2000, int maxHeight = 2000) {
+			if (imagePath.EndsWith(".svg", StringComparison.OrdinalIgnoreCase)) return;
+			try {
+				using (var img = Image.FromFile(imagePath)) {
+					if (img.Width > maxWidth || img.Height > maxHeight) {
+						using (var resized = ResizeImage(img, maxWidth, maxHeight)) {
+							resized.Save(imagePath, img.RawFormat);
+						}
+					}
+				}
+			} catch (Exception ex) {
+				Console.WriteLine($"Warning: Could not resize image {imagePath}: {ex.Message}");
+			}
 		}
 	}
 }
