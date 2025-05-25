@@ -11,40 +11,39 @@ using System.Xml.Linq;
 using QRCoder;
 
 // dotnet publish -c Release -r win-x64 --self-contained true
-namespace OdtPlaceholderReplacer
-{
-	class Program
-	{
-		static void Main(string[] args)
-		{
+namespace OdtPlaceholderReplacer {
+	class Program {
+		static void Main(string[] args) {
 			string odtFilePath = null;
 			string jsonFilePath = null;
 			string outputOdtFilePath = null;
+			string xmlFilePath = null;
 			bool convertToPdf = false;
 			bool overrideDest = false;
 			string noValueReplacement = null;
 
-			for (int i = 0; i < args.Length; i++)
-			{
-				switch (args[i])
-				{
+			for (int i = 0; i < args.Length; i++) {
+				switch (args[i]) {
 					case "--template":
 						if (i + 1 < args.Length) odtFilePath = args[++i];
 						break;
 					case "--json":
 						if (i + 1 < args.Length) jsonFilePath = args[++i];
 						break;
+					case "--xml":
+						if (i + 1 < args.Length) xmlFilePath = args[++i];
+						break;
 					case "--destfile":
 						if (i + 1 < args.Length) outputOdtFilePath = args[++i];
+						break;
+					case "--novalue":
+						if (i + 1 < args.Length) noValueReplacement = args[++i];
 						break;
 					case "--pdf":
 						convertToPdf = true;
 						break;
 					case "--overwrite":
 						overrideDest = true;
-						break;
-					case "--novalue":
-						if (i + 1 < args.Length) noValueReplacement = args[++i];
 						break;
 				}
 			}
@@ -53,47 +52,52 @@ namespace OdtPlaceholderReplacer
 			if (!string.IsNullOrEmpty(outputOdtFilePath) && !outputOdtFilePath.EndsWith(".odt", StringComparison.OrdinalIgnoreCase))
 				outputOdtFilePath += ".odt";
 
-			if (string.IsNullOrEmpty(odtFilePath) || string.IsNullOrEmpty(jsonFilePath) || string.IsNullOrEmpty(outputOdtFilePath))
-			{
-				Console.WriteLine("Usage: FillODT --template template.odt --json data.json --destfile document.odt [--pdf] [--overwrite]");
+			if (string.IsNullOrEmpty(odtFilePath) || (string.IsNullOrEmpty(jsonFilePath) && string.IsNullOrEmpty(xmlFilePath)) || string.IsNullOrEmpty(outputOdtFilePath)) {
+				Console.WriteLine("Usage: FillODT --template template.odt --json data.json|--xml data.xml --destfile document.odt [--pdf] [--overwrite]");
 				return;
 			}
 
 			// Ensure the template file ends with .odt
-			if (!odtFilePath.EndsWith(".odt", StringComparison.OrdinalIgnoreCase))
-			{
+			if (!odtFilePath.EndsWith(".odt", StringComparison.OrdinalIgnoreCase)) {
 				Console.WriteLine("Error: --template file must have a .odt extension.");
 				return;
 			}
 
 			// Check if output file exists and handle override
-			if (File.Exists(outputOdtFilePath) && !overrideDest)
-			{
+			if (File.Exists(outputOdtFilePath) && !overrideDest) {
 				Console.WriteLine($"Error: Destination file '{outputOdtFilePath}' already exists. Use --overwrite to overwrite.");
 				return;
 			}
 			else if (File.Exists(outputOdtFilePath) && overrideDest)
 				File.Delete(outputOdtFilePath);
 
-			if (odtFilePath.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-			{
+			if (odtFilePath.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) {
 				string tempTemplatePath = Path.Combine(Path.GetTempPath(), "template_downloaded.odt");
-				using (var httpClient = new HttpClient())
-				{
+				using (var httpClient = new HttpClient()) {
 					var odtBytes = httpClient.GetByteArrayAsync(odtFilePath).Result;
 					File.WriteAllBytes(tempTemplatePath, odtBytes);
 				}
 				odtFilePath = tempTemplatePath;
 			}
 
-			// Read JSON file
-			var placeholders = FlattenPlaceholders(ReadJsonFile(jsonFilePath));
+			Dictionary<string, object> placeholders = null;
+			if (!string.IsNullOrEmpty(jsonFilePath)) {
+				placeholders = FlattenPlaceholders(ReadJsonFile(jsonFilePath));
+			}
+			else if (!string.IsNullOrEmpty(xmlFilePath)) {
+				var xmlDict = ReadXmlFile(xmlFilePath);
+				string jsonFromXml = JsonSerializer.Serialize(xmlDict);
+				placeholders = FlattenPlaceholders(JsonSerializer.Deserialize<Dictionary<string, object>>(jsonFromXml));
+			}
+			else {
+				Console.WriteLine("Error: You must specify either --json or --xml.");
+				return;
+			}
 
 			// If "incomplete": true, append "__" to the destfile name (before .odt)
 			if (placeholders.TryGetValue("incomplete", out var incompleteValue)
 				&& incompleteValue is JsonElement elem
-				&& elem.ValueKind == JsonValueKind.True)
-			{
+				&& elem.ValueKind == JsonValueKind.True) {
 				if (outputOdtFilePath.EndsWith(".odt", StringComparison.OrdinalIgnoreCase))
 					outputOdtFilePath = outputOdtFilePath.Substring(0, outputOdtFilePath.Length - 4) + "__.odt";
 				else
@@ -118,8 +122,7 @@ namespace OdtPlaceholderReplacer
 			// Create new ODT file
 			CreateOdtFromExtracted(extractedFolder, outputOdtFilePath);
 
-			if (convertToPdf)
-			{
+			if (convertToPdf) {
 				ConvertOdtToPdf(outputOdtFilePath);
 				File.Delete(outputOdtFilePath);
 				Console.WriteLine($"PDF created and ODT deleted: {Path.ChangeExtension(outputOdtFilePath, ".pdf")}");
@@ -128,14 +131,60 @@ namespace OdtPlaceholderReplacer
 				Console.WriteLine($"Output ODT file created at: {outputOdtFilePath}");
 		}
 
-		static Dictionary<string, object> ReadJsonFile(string jsonFilePath)
-		{
+		static Dictionary<string, object> ReadJsonFile(string jsonFilePath) {
 			string json = File.ReadAllText(jsonFilePath);
 			return JsonSerializer.Deserialize<Dictionary<string, object>>(json);
 		}
 
-		static string ExtractOdt(string odtFilePath)
-		{
+		static Dictionary<string, object> ReadXmlFile(string xmlFilePath) {
+			var dict = new Dictionary<string, object>();
+			var doc = XDocument.Load(xmlFilePath);
+
+			foreach (var el in doc.Root.Elements()) {
+				// Handle repeated elements as arrays
+				var siblings = doc.Root.Elements(el.Name).ToList();
+				if (siblings.Count > 1) {
+					// If there are multiple elements with the same name, treat as array
+					if (!dict.ContainsKey(el.Name.LocalName))
+						dict[el.Name.LocalName] = new List<Dictionary<string, object>>();
+
+					var list = (List<Dictionary<string, object>>)dict[el.Name.LocalName];
+					list.Add(XmlElementToDict(el));
+				}
+				else if (el.HasElements) {
+					// If element has children, recurse
+					dict[el.Name.LocalName] = el.Elements().All(e => e.Name == el.Elements().First().Name)
+						? el.Elements().Select(XmlElementToDict).ToList()
+						: XmlElementToDict(el);
+				}
+				else {
+					dict[el.Name.LocalName] = el.Value;
+				}
+			}
+			return dict;
+		}
+
+		static Dictionary<string, object> XmlElementToDict(XElement el) {
+			var dict = new Dictionary<string, object>();
+			foreach (var child in el.Elements()) {
+				var siblings = el.Elements(child.Name).ToList();
+				if (siblings.Count > 1) {
+					if (!dict.ContainsKey(child.Name.LocalName))
+						dict[child.Name.LocalName] = new List<Dictionary<string, object>>();
+					var list = (List<Dictionary<string, object>>)dict[child.Name.LocalName];
+					list.Add(XmlElementToDict(child));
+				}
+				else if (child.HasElements) {
+					dict[child.Name.LocalName] = XmlElementToDict(child);
+				}
+				else {
+					dict[child.Name.LocalName] = child.Value;
+				}
+			}
+			return dict;
+		}
+
+		static string ExtractOdt(string odtFilePath) {
 			string extractPath = Path.Combine(Path.GetTempPath(), Path.GetFileNameWithoutExtension(odtFilePath));
 			if (Directory.Exists(extractPath))
 				Directory.Delete(extractPath, true);
@@ -143,20 +192,17 @@ namespace OdtPlaceholderReplacer
 			return extractPath;
 		}
 
-		static void ReplacePlaceholders(string filePath, Dictionary<string, object> placeholders, string noValueReplacement)
-		{
+		static void ReplacePlaceholders(string filePath, Dictionary<string, object> placeholders, string noValueReplacement) {
 			string content = File.ReadAllText(filePath);
 
 			string picturesDir = Path.Combine(Path.GetDirectoryName(filePath), "Pictures");
 			if (!Directory.Exists(picturesDir))
 				Directory.CreateDirectory(picturesDir);
 
-			foreach (var placeholder in placeholders)
-			{
+			foreach (var placeholder in placeholders) {
 				// Only process image placeholders if the placeholder exists in the template
 				if (Regex.IsMatch(placeholder.Key, @"^image\d+(\.path)?$", RegexOptions.IgnoreCase)
-					&& content.Contains($"@@{placeholder.Key.Split('.')[0]}"))
-				{
+					&& content.Contains($"@@{placeholder.Key.Split('.')[0]}")) {
 					string key = placeholder.Key.Split('.')[0];
 					string imagePath = placeholder.Value.ToString();
 					string imageFileName;
@@ -164,8 +210,7 @@ namespace OdtPlaceholderReplacer
 					string height = null;
 					string width = null;
 
-					if (placeholder.Key.Contains('.'))
-					{
+					if (placeholder.Key.Contains('.')) {
 						if (placeholders.ContainsKey($"{key}.path"))
 							imagePath = placeholders[$"{key}.path"].ToString();
 						if (placeholders.ContainsKey($"{key}.height"))
@@ -175,37 +220,31 @@ namespace OdtPlaceholderReplacer
 					}
 
 					// Download image if it's an HTTPS URL
-					if (imagePath.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-					{
-						using (var httpClient = new HttpClient())
-						{
+					if (imagePath.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) {
+						using (var httpClient = new HttpClient()) {
 							var imageBytes = httpClient.GetByteArrayAsync(imagePath).Result;
 							imageFileName = $"{key}_{Path.GetFileName(new Uri(imagePath).AbsolutePath)}";
 							destImagePath = Path.Combine(picturesDir, imageFileName);
 							File.WriteAllBytes(destImagePath, imageBytes);
 						}
 					}
-					else if (imagePath.StartsWith("qrcode://", StringComparison.OrdinalIgnoreCase))
-					{
+					else if (imagePath.StartsWith("qrcode://", StringComparison.OrdinalIgnoreCase)) {
 						using QRCoder.QRCodeGenerator qrGenerator = new QRCoder.QRCodeGenerator();
 						using QRCoder.QRCodeData qrCodeData = qrGenerator.CreateQrCode(imagePath.Substring(9), QRCoder.QRCodeGenerator.ECCLevel.Q);
 						using QRCoder.BitmapByteQRCode qrCode = new QRCoder.BitmapByteQRCode(qrCodeData);
 						using (MemoryStream ms = new MemoryStream(qrCode.GetGraphic(20)))
-						using (Bitmap qrCodeImage = new Bitmap(ms))
-						{
+						using (Bitmap qrCodeImage = new Bitmap(ms)) {
 							imageFileName = $"{key}_qrcode.png";
 							destImagePath = Path.Combine(picturesDir, imageFileName);
 							qrCodeImage.Save(destImagePath, System.Drawing.Imaging.ImageFormat.Png);
 						}
 					}
-					else if (File.Exists(imagePath))
-					{
+					else if (File.Exists(imagePath)) {
 						imageFileName = Path.GetFileName(imagePath);
 						destImagePath = Path.Combine(picturesDir, imageFileName);
 						File.Copy(imagePath, destImagePath, true);
 					}
-					else
-					{
+					else {
 						content = content.Replace($"@@{placeholder.Key}", "[Image not found]");
 						continue;
 					}
@@ -222,16 +261,13 @@ namespace OdtPlaceholderReplacer
 			}
 
 			// Handle array placeholders in tables
-			foreach (var placeholder in placeholders)
-			{
-				if (placeholder.Value is JsonElement jsonElement && jsonElement.ValueKind == JsonValueKind.Array)
-				{
+			foreach (var placeholder in placeholders) {
+				if (placeholder.Value is JsonElement jsonElement && jsonElement.ValueKind == JsonValueKind.Array) {
 					// Only match rows with at least one @@arrayName.something
 					string rowPattern = $@"(<table:table-row\b[^>]*>[\s\S]*?</table:table-row>)";
 					var rowMatches = Regex.Matches(content, rowPattern, RegexOptions.Singleline);
 
-					foreach (Match rowMatch in rowMatches)
-					{
+					foreach (Match rowMatch in rowMatches) {
 						string originalRow = rowMatch.Groups[1].Value;
 						// Only process rows that contain the array placeholder
 						if (!originalRow.Contains($"@@{placeholder.Key}."))
@@ -242,23 +278,19 @@ namespace OdtPlaceholderReplacer
 						// Deserialize array of objects
 						var items = JsonSerializer.Deserialize<List<Dictionary<string, JsonElement>>>(jsonElement.GetRawText());
 
-						foreach (var item in items)
-						{
+						foreach (var item in items) {
 							string filledRow = originalRow;
 
 							// Replace all @@arrayName.field placeholders for this item
-							foreach (var field in item)
-							{
+							foreach (var field in item) {
 								filledRow = filledRow.Replace($"@@{placeholder.Key}.{field.Key}", field.Value.ToString());
 							}
 
 							// Replace all other flattened placeholders in the row
-							foreach (var flatPlaceholder in placeholders)
-							{
+							foreach (var flatPlaceholder in placeholders) {
 								if (flatPlaceholder.Value is JsonElement flatElem &&
 									flatElem.ValueKind != JsonValueKind.Array &&
-									flatElem.ValueKind != JsonValueKind.Object)
-								{
+									flatElem.ValueKind != JsonValueKind.Object) {
 									filledRow = filledRow.Replace($"@@{flatPlaceholder.Key}", flatElem.ToString());
 								}
 							}
@@ -273,10 +305,8 @@ namespace OdtPlaceholderReplacer
 			}
 
 			// Handle simple and flattened placeholders (including nested non-arrays)
-			foreach (var placeholder in placeholders)
-			{
-				if (placeholder.Value is JsonElement jsonElement && jsonElement.ValueKind != JsonValueKind.Array && jsonElement.ValueKind != JsonValueKind.Object)
-				{
+			foreach (var placeholder in placeholders) {
+				if (placeholder.Value is JsonElement jsonElement && jsonElement.ValueKind != JsonValueKind.Array && jsonElement.ValueKind != JsonValueKind.Object) {
 					string key = placeholder.Key;
 					string value = jsonElement.ToString();
 
@@ -295,8 +325,7 @@ namespace OdtPlaceholderReplacer
 			File.WriteAllText(filePath, content);
 		}
 
-		static void CreateOdtFromExtracted(string extractedFolder, string outputOdtFilePath)
-		{
+		static void CreateOdtFromExtracted(string extractedFolder, string outputOdtFilePath) {
 			string mimetypePath = Path.Combine(extractedFolder, "mimetype");
 			if (!File.Exists(mimetypePath))
 				throw new Exception("mimetype file missing in extracted folder.");
@@ -305,8 +334,7 @@ namespace OdtPlaceholderReplacer
 				File.Delete(outputOdtFilePath);
 
 			using (var zip = new FileStream(outputOdtFilePath, FileMode.Create))
-			using (var archive = new ZipArchive(zip, ZipArchiveMode.Create))
-			{
+			using (var archive = new ZipArchive(zip, ZipArchiveMode.Create)) {
 				// Add mimetype file first, uncompressed
 				var mimetypeEntry = archive.CreateEntry("mimetype", CompressionLevel.NoCompression);
 				using (var entryStream = mimetypeEntry.Open())
@@ -314,8 +342,7 @@ namespace OdtPlaceholderReplacer
 					fileStream.CopyTo(entryStream);
 
 				// Add all other files and folders, compressed
-				foreach (var file in Directory.GetFiles(extractedFolder, "*", SearchOption.AllDirectories))
-				{
+				foreach (var file in Directory.GetFiles(extractedFolder, "*", SearchOption.AllDirectories)) {
 					string relPath = Path.GetRelativePath(extractedFolder, file).Replace("\\", "/");
 					if (relPath == "mimetype") continue; // already added
 
@@ -324,16 +351,12 @@ namespace OdtPlaceholderReplacer
 			}
 		}
 
-		static Dictionary<string, object> FlattenPlaceholders(Dictionary<string, object> dict, string parentKey = "")
-		{
+		static Dictionary<string, object> FlattenPlaceholders(Dictionary<string, object> dict, string parentKey = "") {
 			var flatDict = new Dictionary<string, object>();
-			foreach (var kvp in dict)
-			{
+			foreach (var kvp in dict) {
 				string key = string.IsNullOrEmpty(parentKey) ? kvp.Key : $"{parentKey}.{kvp.Key}";
-				if (kvp.Value is JsonElement jsonElement)
-				{
-					if (jsonElement.ValueKind == JsonValueKind.Object)
-					{
+				if (kvp.Value is JsonElement jsonElement) {
+					if (jsonElement.ValueKind == JsonValueKind.Object) {
 						var nested = JsonSerializer.Deserialize<Dictionary<string, object>>(jsonElement.GetRawText());
 						foreach (var nestedKvp in FlattenPlaceholders(nested, key))
 							flatDict[nestedKvp.Key] = nestedKvp.Value;
@@ -347,9 +370,7 @@ namespace OdtPlaceholderReplacer
 			return flatDict;
 		}
 
-		static void ConvertOdtToPdf(string odtPath)
-		{
-			string pdfPath = Path.ChangeExtension(odtPath, ".pdf");
+		static void ConvertOdtToPdf(string odtPath) {
 			var process = new System.Diagnostics.Process();
 			process.StartInfo.FileName = "soffice";
 			process.StartInfo.Arguments = $"--headless --convert-to pdf \"{odtPath}\" --outdir \"{Path.GetDirectoryName(odtPath)}\"";
@@ -358,13 +379,10 @@ namespace OdtPlaceholderReplacer
 			process.StartInfo.RedirectStandardOutput = true;
 			process.StartInfo.RedirectStandardError = true;
 			process.Start();
-
-			if (!File.Exists(pdfPath))
-				throw new Exception("PDF was not created. See LibreOffice output above.");
 		}
+
 		// Converts a limited set of HTML tags to ODT XML equivalents
-		static string HtmlToOdtXml(string html)
-		{
+		static string HtmlToOdtXml(string html) {
 			// Bold
 			html = Regex.Replace(html, @"<b>(.*?)</b>", "<text:span text:style-name=\"Bold\">$1</text:span>", RegexOptions.IgnoreCase);
 			html = Regex.Replace(html, @"<strong>(.*?)</strong>", "<text:span text:style-name=\"Bold\">$1</text:span>", RegexOptions.IgnoreCase);
@@ -389,14 +407,11 @@ namespace OdtPlaceholderReplacer
 			return html;
 		}
 
-		static string ConvertToOdtLength(string value)
-		{
+		static string ConvertToOdtLength(string value) {
 			if (string.IsNullOrEmpty(value)) return null;
 			value = value.Trim().ToLowerInvariant();
-			if (value.EndsWith("px"))
-			{
-				if (double.TryParse(value.Replace("px", ""), out double px))
-				{
+			if (value.EndsWith("px")) {
+				if (double.TryParse(value.Replace("px", ""), out double px)) {
 					double cm = px * 0.0352778;
 					return $"{cm:0.###}cm";
 				}
@@ -411,8 +426,7 @@ namespace OdtPlaceholderReplacer
 		}
 
 		// Call this after all images are written, before zipping the ODT
-		static void UpdateManifestWithImages(string extractedFolder)
-		{
+		static void UpdateManifestWithImages(string extractedFolder) {
 			string manifestPath = Path.Combine(extractedFolder, "META-INF", "manifest.xml");
 			if (!File.Exists(manifestPath)) return;
 
@@ -426,8 +440,7 @@ namespace OdtPlaceholderReplacer
 
 			// Get the root <manifest:manifest> element
 			var root = doc.Root;
-			foreach (var imagePath in imageFiles)
-			{
+			foreach (var imagePath in imageFiles) {
 				string relPath = "Pictures/" + Path.GetFileName(imagePath);
 				string mediaType = GetMediaTypeFromExtension(Path.GetExtension(imagePath));
 
@@ -445,10 +458,8 @@ namespace OdtPlaceholderReplacer
 		}
 
 		// Helper to get media type from file extension
-		static string GetMediaTypeFromExtension(string ext)
-		{
-			switch (ext.ToLowerInvariant())
-			{
+		static string GetMediaTypeFromExtension(string ext) {
+			switch (ext.ToLowerInvariant()) {
 				case ".png": return "image/png";
 				case ".jpg":
 				case ".jpeg": return "image/jpeg";

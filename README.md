@@ -1,6 +1,6 @@
 # FillODT.exe
 
-**FillODT** is a command-line tool that takes an ODT (OpenDocument Text) template containing `@@placeholders` and a JSON file with key-value pairs, then generates a new ODT file with all placeholders replaced by their corresponding values from the JSON.
+**FillODT** is a command-line tool that takes an ODT (OpenDocument Text) template containing `@@placeholders` and a JSON or XML file with key-value pairs, then generates a new ODT file with all placeholders replaced by their corresponding values from the JSON or XML.
 
 - Supports simple text, HTML fragments, and images (including QR codes).
 - Handles array data for table row expansion.
@@ -44,13 +44,29 @@ $ FillODT.exe --template template.odt --json data.json --destfile output.odt
 
 ```sh
 FillODT.exe --template <template.odt> --json <data.json> --destfile <output.odt> [options]
+FillODT.exe --template <template.odt> --xml <data.xml> --destfile <output.odt> [options]
 ```
 
-**Options:**
+You must specify either a JSON file (`--json data.json`) or an XML file (`--xml data.xml`) as your data source.
 
-- `--overwrite` Overwrite the output file if it exists.
-- `--pdf` Also generate a PDF (requires LibreOffice).
-- `--novalue <text>` Replace any unreplaced placeholders with the given text.
+**Options:**
+- `--overwrite`         Overwrite the output file if it exists.
+- `--pdf`             Also generate a PDF (requires LibreOffice).
+- `--novalue <text>`     Replace any unreplaced placeholders with the given text.
+
+---
+
+### Example
+
+**Using JSON:**
+```sh
+FillODT.exe --template template.odt --json data.json --destfile output.odt
+```
+
+**Using XML:**
+```sh
+FillODT.exe --template template.odt --xml data.xml --destfile output.odt
+```
 
 ## Examples
 
