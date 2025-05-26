@@ -1,6 +1,6 @@
 # FillODT.exe
 
-**FillODT** is a command-line tool that takes an ODT (OpenDocument Text) template containing `@@placeholders` and a JSON or XML file with key-value pairs, then generates a new ODT file with all placeholders replaced by their corresponding values from the JSON or XML.
+**FillODT** is a command-line tool that takes an ODT (Open Document Text) template containing `@@placeholders` and a JSON or XML file with key-value pairs, then generates a new ODT file with all placeholders replaced by their corresponding values from the JSON or XML.
 
 - Supports simple text, HTML fragments, and images (including QR codes).
 - Handles array data for table row expansion.
