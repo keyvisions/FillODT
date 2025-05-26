@@ -81,7 +81,7 @@ You must specify either a JSON file (`--json data.json`) or an XML file (`--xml 
 FillODT.exe --template template.odt --json data.json --destfile output.odt --pdf
 ```
 
-See [template.odt](https://github.com/keyvisions/FillODT/blob/master/template.odt), [data.json](https://github.com/keyvisions/FillODT/blob/master/data.json) and [output.pdf](https://github.com/keyvisions/FillODT/blob/master/ouput.pdf)
+See [template.odt](https://github.com/keyvisions/FillODT/blob/master/template.odt), [data.json](https://github.com/keyvisions/FillODT/blob/master/data.json) and [output.pdf](https://github.com/keyvisions/FillODT/blob/master/output.pdf)
 
 ---
 
