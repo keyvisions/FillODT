@@ -75,37 +75,13 @@ You must specify either a JSON file (`--json data.json`) or an XML file (`--xml 
 
 ---
 
-### Example
+## Example
 
-**Using JSON:**
 ```sh
-FillODT.exe --template template.odt --json data.json --destfile output.odt
+FillODT.exe --template template.odt --json data.json --destfile output.odt --pdf
 ```
 
-**Using XML:**
-```sh
-FillODT.exe --template template.odt --xml data.xml --destfile output.odt
-```
-
-## Examples
-
-### 1. Basic Usage
-```sh
-FillODT.exe --template template.odt --json data.json --destfile output.odt
-```
-
-### 2. JSON Data Structure
-```json
-{
-  "name": "Jane Doe",
-  "image1": "qrcode://https://example.com",
-  "image2": { "path": "./media/photo.png", "height": "3cm" },
-  "jobs": [
-    { "company": "Tech Solutions", "position": "Engineer" },
-    { "company": "Web Innovations", "position": "Developer" }
-  ]
-}
-```
+See [template.odt](https://github.com/keyvisions/FillODT/blob/master/template.odt), [data.json](https://github.com/keyvisions/FillODT/blob/master/data.json) and [output.pdf](https://github.com/keyvisions/FillODT/blob/master/ouput.pdf)
 
 ---
 
