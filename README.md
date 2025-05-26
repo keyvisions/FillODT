@@ -54,8 +54,6 @@ You can also use an object to specify image size:
 "image4": { "path": "./media/photo.png", "height": "3cm" }
 ```
 
-This project was developed with the assistance of GitHub Copilot.
-
 ## Run the App
 $ FillODT.exe --template template.odt --json data.json --destfile output.odt
 
@@ -88,3 +86,5 @@ See [template.odt](https://github.com/keyvisions/FillODT/blob/master/template.od
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+This project was developed with the assistance of GitHub Copilot.
