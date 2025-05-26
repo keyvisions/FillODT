@@ -11,7 +11,7 @@ using System.Xml.Linq;
 using QRCoder;
 
 // dotnet publish -c Release -r win-x64 --self-contained true
-namespace OdtPlaceholderReplacer {
+namespace FillODT {
 	class Program {
 		static void Main(string[] args) {
 			string odtFilePath = null;
@@ -221,25 +221,23 @@ namespace OdtPlaceholderReplacer {
 
 					// Download image if it's an HTTPS URL
 					if (imagePath.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) {
-						using (var httpClient = new HttpClient()) {
-							var imageBytes = httpClient.GetByteArrayAsync(imagePath).Result;
-							imageFileName = $"{key}_{Path.GetFileName(new Uri(imagePath).AbsolutePath)}";
-							destImagePath = Path.Combine(picturesDir, imageFileName);
-							File.WriteAllBytes(destImagePath, imageBytes);
-							TryResizeImage(destImagePath);
-						}
+						using var httpClient = new HttpClient();
+						var imageBytes = httpClient.GetByteArrayAsync(imagePath).Result;
+						imageFileName = $"{key}_{Path.GetFileName(new Uri(imagePath).AbsolutePath)}";
+						destImagePath = Path.Combine(picturesDir, imageFileName);
+						File.WriteAllBytes(destImagePath, imageBytes);
+						TryResizeImage(destImagePath);
 					}
 					else if (imagePath.StartsWith("qrcode://", StringComparison.OrdinalIgnoreCase)) {
 						using QRCoder.QRCodeGenerator qrGenerator = new QRCoder.QRCodeGenerator();
-						using QRCoder.QRCodeData qrCodeData = qrGenerator.CreateQrCode(imagePath.Substring(9), QRCoder.QRCodeGenerator.ECCLevel.Q);
+						using QRCoder.QRCodeData qrCodeData = qrGenerator.CreateQrCode(imagePath[9..], QRCoder.QRCodeGenerator.ECCLevel.Q);
 						using QRCoder.BitmapByteQRCode qrCode = new QRCoder.BitmapByteQRCode(qrCodeData);
-						using (MemoryStream ms = new MemoryStream(qrCode.GetGraphic(20)))
-						using (Bitmap qrCodeImage = new Bitmap(ms)) {
-							imageFileName = $"{key}_qrcode.png";
-							destImagePath = Path.Combine(picturesDir, imageFileName);
-							qrCodeImage.Save(destImagePath, System.Drawing.Imaging.ImageFormat.Png);
-							TryResizeImage(destImagePath);
-						}
+						using MemoryStream ms = new(qrCode.GetGraphic(20));
+						using Bitmap qrCodeImage = new Bitmap(ms);
+						imageFileName = $"{key}_qrcode.png";
+						destImagePath = Path.Combine(picturesDir, imageFileName);
+						qrCodeImage.Save(destImagePath, System.Drawing.Imaging.ImageFormat.Png);
+						TryResizeImage(destImagePath);
 					}
 					else if (File.Exists(imagePath)) {
 						imageFileName = Path.GetFileName(imagePath);
@@ -255,23 +253,22 @@ namespace OdtPlaceholderReplacer {
 					// Aspect ratio logic
 					if (string.IsNullOrEmpty(width) || string.IsNullOrEmpty(height)) {
 						try {
-							using (var img = Image.FromFile(destImagePath)) {
-								double aspect = (double)img.Width / img.Height;
-								double? widthCm = null, heightCm = null;
+							using var img = Image.FromFile(destImagePath);
+							double aspect = (double)img.Width / img.Height;
+							double? widthCm = null, heightCm = null;
 
-								if (!string.IsNullOrEmpty(width))
-									widthCm = ParseToCm(width);
-								if (!string.IsNullOrEmpty(height))
-									heightCm = ParseToCm(height);
+							if (!string.IsNullOrEmpty(width))
+								widthCm = ParseToCm(width);
+							if (!string.IsNullOrEmpty(height))
+								heightCm = ParseToCm(height);
 
-								if (widthCm.HasValue && !heightCm.HasValue) {
-									heightCm = widthCm / aspect;
-									height = $"{heightCm.Value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)}cm";
-								}
-								else if (!widthCm.HasValue && heightCm.HasValue) {
-									widthCm = heightCm * aspect;
-									width = $"{widthCm.Value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)}cm";
-								}
+							if (widthCm.HasValue && !heightCm.HasValue) {
+								heightCm = widthCm / aspect;
+								height = $"{heightCm.Value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)}cm";
+							}
+							else if (!widthCm.HasValue && heightCm.HasValue) {
+								widthCm = heightCm * aspect;
+								width = $"{widthCm.Value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)}cm";
 							}
 						}
 						catch (Exception) {
@@ -363,21 +360,20 @@ namespace OdtPlaceholderReplacer {
 			if (File.Exists(outputOdtFilePath))
 				File.Delete(outputOdtFilePath);
 
-			using (var zip = new FileStream(outputOdtFilePath, FileMode.Create))
-			using (var archive = new ZipArchive(zip, ZipArchiveMode.Create)) {
-				// Add mimetype file first, uncompressed
-				var mimetypeEntry = archive.CreateEntry("mimetype", CompressionLevel.NoCompression);
-				using (var entryStream = mimetypeEntry.Open())
-				using (var fileStream = File.OpenRead(mimetypePath))
-					fileStream.CopyTo(entryStream);
+			using var zip = new FileStream(outputOdtFilePath, FileMode.Create);
+			using var archive = new ZipArchive(zip, ZipArchiveMode.Create);
+			// Add mimetype file first, uncompressed
+			var mimetypeEntry = archive.CreateEntry("mimetype", CompressionLevel.NoCompression);
+			using (var entryStream = mimetypeEntry.Open())
+			using (var fileStream = File.OpenRead(mimetypePath))
+				fileStream.CopyTo(entryStream);
 
-				// Add all other files and folders, compressed
-				foreach (var file in Directory.GetFiles(extractedFolder, "*", SearchOption.AllDirectories)) {
-					string relPath = Path.GetRelativePath(extractedFolder, file).Replace("\\", "/");
-					if (relPath == "mimetype") continue; // already added
+			// Add all other files and folders, compressed
+			foreach (var file in Directory.GetFiles(extractedFolder, "*", SearchOption.AllDirectories)) {
+				string relPath = Path.GetRelativePath(extractedFolder, file).Replace("\\", "/");
+				if (relPath == "mimetype") continue; // already added
 
-					archive.CreateEntryFromFile(file, relPath, CompressionLevel.Optimal);
-				}
+				archive.CreateEntryFromFile(file, relPath, CompressionLevel.Optimal);
 			}
 		}
 
@@ -456,7 +452,6 @@ namespace OdtPlaceholderReplacer {
 			return value;
 		}
 
-		// Call this after all images are written, before zipping the ODT
 		static void UpdateManifestWithImages(string extractedFolder) {
 			string manifestPath = Path.Combine(extractedFolder, "META-INF", "manifest.xml");
 			if (!File.Exists(manifestPath)) return;
@@ -488,7 +483,6 @@ namespace OdtPlaceholderReplacer {
 			doc.Save(manifestPath);
 		}
 
-		// Helper to get media type from file extension
 		static string GetMediaTypeFromExtension(string ext) {
 			switch (ext.ToLowerInvariant()) {
 				case ".png": return "image/png";
@@ -501,7 +495,6 @@ namespace OdtPlaceholderReplacer {
 			}
 		}
 
-		// Helper to parse px/cm/mm/in/pt to cm
 		static double ParseToCm(string value) {
 			value = value.Trim().ToLowerInvariant();
 			if (value.EndsWith("cm"))
@@ -539,14 +532,13 @@ namespace OdtPlaceholderReplacer {
 		static void TryResizeImage(string imagePath, int maxWidth = 2000, int maxHeight = 2000) {
 			if (imagePath.EndsWith(".svg", StringComparison.OrdinalIgnoreCase)) return;
 			try {
-				using (var img = Image.FromFile(imagePath)) {
-					if (img.Width > maxWidth || img.Height > maxHeight) {
-						using (var resized = ResizeImage(img, maxWidth, maxHeight)) {
-							resized.Save(imagePath, img.RawFormat);
-						}
-					}
+				using var img = Image.FromFile(imagePath);
+				if (img.Width > maxWidth || img.Height > maxHeight) {
+					using var resized = ResizeImage(img, maxWidth, maxHeight);
+					resized.Save(imagePath, img.RawFormat);
 				}
-			} catch (Exception ex) {
+			}
+			catch (Exception ex) {
 				Console.WriteLine($"Warning: Could not resize image {imagePath}: {ex.Message}");
 			}
 		}
