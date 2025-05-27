@@ -74,10 +74,44 @@ namespace FillODT {
 			if (odtFilePath.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) {
 				string tempTemplatePath = Path.Combine(Path.GetTempPath(), "template_downloaded.odt");
 				using (var httpClient = new HttpClient()) {
-					var odtBytes = httpClient.GetByteArrayAsync(odtFilePath).Result;
-					File.WriteAllBytes(tempTemplatePath, odtBytes);
+					try {
+						var odtBytes = httpClient.GetByteArrayAsync(odtFilePath).Result;
+						File.WriteAllBytes(tempTemplatePath, odtBytes);
+					}
+					catch (Exception) {
+						Console.WriteLine($"Error downloading template {odtFilePath}");
+						return;
+					}
 				}
 				odtFilePath = tempTemplatePath;
+			}
+
+			// Download JSON or XML if given as URL
+			if (!string.IsNullOrEmpty(jsonFilePath) && jsonFilePath.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) {
+				string tempJsonPath = Path.Combine(Path.GetTempPath(), "data_downloaded.json");
+				using var httpClient = new HttpClient();
+				try {
+					var jsonBytes = httpClient.GetByteArrayAsync(jsonFilePath).Result;
+					File.WriteAllBytes(tempJsonPath, jsonBytes);
+					jsonFilePath = tempJsonPath;
+				}
+				catch (Exception) {
+					Console.WriteLine($"Error downloading JSON {jsonFilePath}");
+					return;
+				}
+			}
+			if (!string.IsNullOrEmpty(xmlFilePath) && xmlFilePath.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) {
+				string tempXmlPath = Path.Combine(Path.GetTempPath(), "data_downloaded.xml");
+				using var httpClient = new HttpClient();
+				try {
+					var xmlBytes = httpClient.GetByteArrayAsync(xmlFilePath).Result;
+					File.WriteAllBytes(tempXmlPath, xmlBytes);
+					xmlFilePath = tempXmlPath;
+				}
+				catch (Exception) {
+					Console.WriteLine($"Error downloading XML {xmlFilePath}");
+					return;
+				}
 			}
 
 			Dictionary<string, object> placeholders = null;
