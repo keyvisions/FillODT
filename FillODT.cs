@@ -235,8 +235,7 @@ namespace FillODT {
 
 			foreach (var placeholder in placeholders) {
 				// Only process image placeholders if the placeholder exists in the template
-				if (Regex.IsMatch(placeholder.Key, @"^image\d+(\.path)?$", RegexOptions.IgnoreCase)
-					&& content.Contains($"@@{placeholder.Key.Split('.')[0]}")) {
+				if (content.Contains($"##{placeholder.Key.Split('.')[0]}")) {
 					string key = placeholder.Key.Split('.')[0];
 					string imagePath = placeholder.Value.ToString();
 					string imageFileName;
@@ -280,7 +279,7 @@ namespace FillODT {
 						TryResizeImage(destImagePath);
 					}
 					else {
-						content = content.Replace($"@@{placeholder.Key}", "[Image not found]");
+						content = content.Replace($"##{placeholder.Key}", "");
 						continue;
 					}
 
@@ -317,7 +316,7 @@ namespace FillODT {
 					string imageXml =
 						$@"<draw:frame draw:name=""{placeholder.Key.Split('.')[0]}"" text:anchor-type=""as-char"" draw:z-index=""0""{widthAttr}{heightAttr}><draw:image xlink:href=""{odtImagePath}"" xlink:type=""simple"" xlink:show=""embed"" xlink:actuate=""onLoad""/></draw:frame>";
 
-					content = content.Replace($"@@{key}", imageXml);
+					content = content.Replace($"##{key}", imageXml);
 				}
 			}
 
@@ -378,6 +377,9 @@ namespace FillODT {
 					content = content.Replace($"@@{key}", value);
 				}
 			}
+
+			// Remove any leftover ##image placeholders
+			content = Regex.Replace(content, @"##[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)?", "");
 
 			// Replace any remaining @@placeholder patterns with the noValueReplacement string
 			if (!string.IsNullOrEmpty(noValueReplacement))

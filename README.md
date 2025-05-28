@@ -1,6 +1,6 @@
 # FillODT.exe
 
-**FillODT** is a command-line tool that takes an ODT (Open Document Text) template containing `@@placeholders` and a JSON or XML file with key-value pairs, then generates a new ODT file with all placeholders replaced by their corresponding values from the JSON or XML.
+**FillODT** is a command-line tool that takes an ODT (Open Document Text) template containing `@@placeholders` and `##images` and a JSON or XML file with key-value pairs, then generates a new ODT file with all placeholders replaced by their corresponding values from the JSON or XML.
 
 - Supports simple text, HTML fragments, and images (including QR codes).
 - Handles array data for table row expansion.
@@ -29,29 +29,29 @@ This makes it ideal for automated document workflows, e-commerce, logistics, and
 
 ## Image placeholder syntax
 
-The `@@imageN` placeholders in your ODT template can be replaced with:
+The `##image` placeholders in your ODT template can be defined as follows:
 
 - **A local file:**  
   Specify a path to an image file on disk.
   ```json
-  "image1": "./media/photo.png"
+  "myphoto": "./media/photo.png"
   ```
 
 - **A URL (https):**  
   Provide an HTTPS URL to an image. The image will be downloaded automatically.
   ```json
-  "image2": "https://example.com/image.jpg"
+  "myimage": "https://example.com/image.jpg"
   ```
 
 - **A QR code:**  
-  Use the `qrcode://` prefix followed by the text or URL you want encoded. A QR code image will be generated and inserted.
+  Use the `qrcode://` prefix followed by the text or URL you want encoded. FillODT will generate a QR code image.
   ```json
-  "image3": "qrcode://https://example.com"
+  "myqrcode": "qrcode://https://example.com"
   ```
 
-You can also use an object to specify image size:
+You can also use an object to specify image size, if only one dimension is specified the other dimension will be set according to the aspect ratio of the image:
 ```json
-"image4": { "path": "./media/photo.png", "height": "3cm" }
+"myphoto": { "path": "./media/photo.png", "height": "3cm" }
 ```
 
 ## Run the App

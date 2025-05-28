@@ -9,12 +9,14 @@ document.odt
 # Allow only these file extensions in the repo:
 !*.cs
 !*.json
+!*.xml
 !*.md
 !*.gitignore
 !*.sln
 !*.csproj
 !*.png
 !output.pdf
+!publish.ps1
 
 # Ignore everything else by default (optional strict mode)
 *

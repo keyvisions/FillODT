@@ -4,12 +4,14 @@
   <age>30</age>
   <email>john.doe@company.com</email>
   <phone>+1234567890</phone>
-  <image1>
-    <path>https://www.keyvisions.it/wp-content/uploads/2018/03/logo.svg</path>
+  <image>
+    <path>.\\media\\FillODT.png</path>
     <height>2cm</height>
-    <width>2cm</width>
-  </image1>
-  <image2>qrcode://1234567890</image2>
+  </image>
+  <qrcode>
+    <path>qrcode://1234567890</path>
+    <height>4cm</height>
+  </qrcode>
   <address>
     <street>123 Main St</street>
     <city>&lt;b&gt;Anytown&lt;/b&gt;</city>
