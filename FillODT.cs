@@ -270,7 +270,6 @@ namespace FillODT {
 						imageFileName = $"{key}_qrcode.png";
 						destImagePath = Path.Combine(picturesDir, imageFileName);
 						qrCodeImage.Save(destImagePath, System.Drawing.Imaging.ImageFormat.Png);
-						TryResizeImage(destImagePath);
 					}
 					else if (File.Exists(imagePath)) {
 						imageFileName = Path.GetFileName(imagePath);
@@ -565,17 +564,42 @@ namespace FillODT {
 			return newImage;
 		}
 
-		static void TryResizeImage(string imagePath, int maxWidth = 2000, int maxHeight = 2000) {
-			if (imagePath.EndsWith(".svg", StringComparison.OrdinalIgnoreCase)) return;
+		static void TryResizeImage(string imagePath, int maxWidth = 1024, int maxHeight = 1024) {
+			if (imagePath.EndsWith(".svg", StringComparison.OrdinalIgnoreCase))
+				return;
+
 			try {
-				using var img = Image.FromFile(imagePath);
+				using var fs = new FileStream(imagePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+				using var img = Image.FromStream(fs);
+
+				// Fix orientation based on EXIF data
+				const int ExifOrientationId = 0x0112;
+				if (img.PropertyIdList.Contains(ExifOrientationId)) {
+					var prop = img.GetPropertyItem(ExifOrientationId);
+					int orientation = prop.Value[0];
+					RotateFlipType rotateFlip = RotateFlipType.RotateNoneFlipNone;
+					switch (orientation) {
+						case 2: rotateFlip = RotateFlipType.RotateNoneFlipX; break;
+						case 3: rotateFlip = RotateFlipType.Rotate180FlipNone; break;
+						case 4: rotateFlip = RotateFlipType.Rotate180FlipX; break;
+						case 5: rotateFlip = RotateFlipType.Rotate90FlipX; break;
+						case 6: rotateFlip = RotateFlipType.Rotate90FlipNone; break;
+						case 7: rotateFlip = RotateFlipType.Rotate270FlipX; break;
+						case 8: rotateFlip = RotateFlipType.Rotate270FlipNone; break;
+					}
+					if (rotateFlip != RotateFlipType.RotateNoneFlipNone)
+						img.RotateFlip(rotateFlip);
+					// Remove orientation property to prevent re-rotation
+					img.RemovePropertyItem(ExifOrientationId);
+				}
+
 				if (img.Width > maxWidth || img.Height > maxHeight) {
 					using var resized = ResizeImage(img, maxWidth, maxHeight);
 					resized.Save(imagePath, img.RawFormat);
 				}
 			}
 			catch (Exception ex) {
-				Console.WriteLine($"Warning: Could not resize image {imagePath}: {ex.Message}");
+				Console.WriteLine($"Warning: Could not resize image {imagePath}: {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
 			}
 		}
 	}
