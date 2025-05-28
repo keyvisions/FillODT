@@ -1,0 +1,46 @@
+<data>
+  <incomplete>false</incomplete>
+  <name>John Doe</name>
+  <age>30</age>
+  <email>john.doe@company.com</email>
+  <phone>+1234567890</phone>
+  <image1>
+    <path>https://www.keyvisions.it/wp-content/uploads/2018/03/logo.svg</path>
+    <height>2cm</height>
+    <width>2cm</width>
+  </image1>
+  <image2>qrcode://1234567890</image2>
+  <address>
+    <street>123 Main St</street>
+    <city>&lt;b&gt;Anytown&lt;/b&gt;</city>
+    <state>CA</state>
+    <zip>12345</zip>
+  </address>
+  <jobs>
+    <job>
+      <company>Tech Solutions</company>
+      <position>Software Engineer</position>
+      <duration>2 years</duration>
+    </job>
+    <job>
+      <company>Web Innovations</company>
+      <position>Frontend Developer</position>
+      <duration>1 year</duration>
+    </job>
+    <job>
+      <company>Data Corp</company>
+      <position>Data Analyst</position>
+      <duration>6 months</duration>
+    </job>
+    <job>
+      <company>Cloud Services</company>
+      <position>DevOps Engineer</position>
+      <duration>1 year</duration>
+    </job>
+    <job>
+      <company>AI Solutions</company>
+      <position>Machine Learning Engineer</position>
+      <duration>1 year</duration>
+    </job>
+  </jobs>
+</data>
