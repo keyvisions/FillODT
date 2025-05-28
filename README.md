@@ -1,12 +1,13 @@
 # FillODT.exe
 
-**FillODT** is a command-line tool that takes an ODT (Open Document Text) template containing `@@placeholders` and `##images` and a JSON or XML file with key-value pairs, then generates a new ODT file with all placeholders replaced by their corresponding values from the JSON or XML.
+**FillODT** is a command-line tool that takes an ODT (Open Document Text) template containing `@@name` and `##images` placeholder and a JSON or XML file with key-value pairs, then generates a new ODT file with all placeholders replaced by their corresponding values as specified in the JSON or XML file.
 
 - Supports simple text, HTML fragments, and images (including QR codes).
 - Handles array data for table row expansion.
-- Allows image sizing and QR code generation via special placeholder syntax.
+- Allows image sizing and QR code generation.
 - Can output to PDF (requires LibreOffice).
-- Includes options for overwriting, empty placeholder replacement, and marking incomplete documents.
+- Includes options for overwriting, empty placeholder replacement.
+- If the data file contains the `incomplete` key set to `1`, the generated document's filename will have two underscores appended before the extension (for example, `document__.pdf`). This indicates that the document is incomplete.
 
 [Download the latest Windows executable](https://github.com/keyvisions/FillODT/releases/latest)
 
