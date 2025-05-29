@@ -384,6 +384,8 @@ namespace FillODT {
 			if (!string.IsNullOrEmpty(noValueReplacement))
 				content = Regex.Replace(content, @"@@[a-zA-Z0-9_.]+", noValueReplacement);
 
+			// Ensure the destination directory exists before writing
+			Directory.CreateDirectory(Path.GetDirectoryName(filePath));
 			File.WriteAllText(filePath, content);
 		}
 
@@ -395,6 +397,8 @@ namespace FillODT {
 			if (File.Exists(outputOdtFilePath))
 				File.Delete(outputOdtFilePath);
 
+			// Ensure the destination directory exists before writing
+			Directory.CreateDirectory(Path.GetDirectoryName(outputOdtFilePath));
 			using var zip = new FileStream(outputOdtFilePath, FileMode.Create);
 			using var archive = new ZipArchive(zip, ZipArchiveMode.Create);
 			// Add mimetype file first, uncompressed
