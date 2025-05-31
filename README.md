@@ -2,7 +2,7 @@
 
 **FillODT** is a command-line tool that takes an ODT (Open Document Text) template containing `@@name` and `[@@image (W|*) (H|*)]` placeholders and a JSON or an XML file with key-value pairs, then generates a new ODT file with all placeholders replaced by their corresponding values as specified in the JSON or XML file.
 
-- Supports simple text, HTML fragments, images and QRCode generation.
+- Supports text, simple HTML fragments, images and QRCode generation.
 - Handles array data for table row expansion.
 - Allows image sizing.
 - Can output to PDF (requires LibreOffice).
