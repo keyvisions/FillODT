@@ -1,12 +1,12 @@
 # FillODT.exe
 
-**FillODT** is a command-line tool that takes an ODT (Open Document Text) template containing `@@name` and `##images` placeholder and a JSON or XML file with key-value pairs, then generates a new ODT file with all placeholders replaced by their corresponding values as specified in the JSON or XML file.
+**FillODT** is a command-line tool that takes an ODT (Open Document Text) template containing `@@name` and `[@@image (W|*) (H|*)]` placeholders and a JSON or an XML file with key-value pairs, then generates a new ODT file with all placeholders replaced by their corresponding values as specified in the JSON or XML file.
 
-- Supports simple text, HTML fragments, and images (including QR codes).
+- Supports simple text, HTML fragments, and images and QRCode generation.
 - Handles array data for table row expansion.
-- Allows image sizing and QR code generation.
+- Allows image sizing.
 - Can output to PDF (requires LibreOffice).
-- Includes options for overwriting, empty placeholder replacement.
+- Includes options for overwriting, empty placeholder replacement, and sanitizing ODT.
 - If the data file contains the `incomplete` key set to `1`, the generated document's filename will have two underscores appended before the extension (for example, `document__.pdf`). This indicates that the document is incomplete.
 
 [Download the latest Windows executable](https://github.com/keyvisions/FillODT/releases/latest)
@@ -29,8 +29,7 @@ This makes it ideal for automated document workflows, e-commerce, logistics, and
 ---
 
 ## Image placeholder syntax
-
-The `##image` placeholders in your ODT template can be defined as follows:
+The `[@@image (W|*) (H|*)]` Width and Height are in cm, when an * is used the associated dimension is set based on the aspect ratio of the image (dimensions are preset to 2 *), placeholders in your ODT template can be defined as follows:
 
 - **A local file:**  
   Specify a path to an image file on disk.
@@ -50,11 +49,6 @@ The `##image` placeholders in your ODT template can be defined as follows:
   "myqrcode": "qrcode://https://example.com"
   ```
 
-You can also use an object to specify image size, if only one dimension is specified the other dimension will be set according to the aspect ratio of the image:
-```json
-"myphoto": { "path": "./media/photo.png", "height": "3cm" }
-```
-
 ## Run the App
 $ FillODT.exe --template template.odt --json data.json --destfile output.odt
 
@@ -68,9 +62,13 @@ FillODT.exe --template <template.odt> --xml <data.xml> --destfile <output.odt> [
 You must specify either a JSON file (`--json data.json`) or an XML file (`--xml data.xml`) as your data source.
 
 **Options:**
-- `--overwrite`         Overwrite the output file if it exists.
-- `--pdf`             Also generate a PDF (requires LibreOffice).
-- `--novalue <text>`     Replace any unreplaced placeholders with the given text.
+
+| Option                | Description                                                                                      |
+|-----------------------|--------------------------------------------------------------------------------------------------|
+| `--overwrite`         | Overwrite the output file if it exists.                                                          |
+| `--pdf`               | Also generate a PDF (requires LibreOffice).                                                      |
+| `--novalue <text>`    | Replace any unreplaced placeholders with the given text.                                         |
+| `--sanitize`          | Remove useless `<text:style>` introduced in the ODT during editing. FillODT should be run in sanitize mode on a ODT template after it has been edited. |
 
 ---
 

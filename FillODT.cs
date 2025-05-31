@@ -21,6 +21,7 @@ namespace FillODT {
 			bool convertToPdf = false;
 			bool overrideDest = false;
 			string noValueReplacement = null;
+			bool sanitize = false;
 
 			for (int i = 0; i < args.Length; i++) {
 				switch (args[i]) {
@@ -44,6 +45,9 @@ namespace FillODT {
 						break;
 					case "--overwrite":
 						overrideDest = true;
+						break;
+					case "--sanitize":
+						sanitize = true;
 						break;
 				}
 			}
@@ -140,6 +144,16 @@ namespace FillODT {
 
 			// Extract ODT file
 			string extractedFolder = ExtractOdt(odtFilePath);
+			if (string.IsNullOrEmpty(extractedFolder)) {
+				Console.WriteLine($"Error accessing ODT template '{odtFilePath}': does not exists or is in use.");
+				return;
+			}
+			if (sanitize) {
+				SanitizeODT(extractedFolder);
+				CreateOdtFromExtracted(extractedFolder, odtFilePath);
+				Console.WriteLine("Sanitized ODT file by removing useless styles.");
+				return;
+			}
 
 			// Replace placeholders in content.xml
 			string contentFilePath = Path.Combine(extractedFolder, "content.xml");
@@ -219,11 +233,16 @@ namespace FillODT {
 		}
 
 		static string ExtractOdt(string odtFilePath) {
-			string extractPath = Path.Combine(Path.GetTempPath(), Path.GetFileNameWithoutExtension(odtFilePath));
-			if (Directory.Exists(extractPath))
-				Directory.Delete(extractPath, true);
-			ZipFile.ExtractToDirectory(odtFilePath, extractPath);
-			return extractPath;
+			try {
+				string extractPath = Path.Combine(Path.GetTempPath(), Path.GetFileNameWithoutExtension(odtFilePath));
+				if (Directory.Exists(extractPath))
+					Directory.Delete(extractPath, true);
+				ZipFile.ExtractToDirectory(odtFilePath, extractPath);
+				return extractPath;
+			}
+			catch (Exception) {
+				return null;
+			}
 		}
 
 		static void ReplacePlaceholders(string filePath, Dictionary<string, object> placeholders, string noValueReplacement) {
@@ -233,24 +252,16 @@ namespace FillODT {
 			if (!Directory.Exists(picturesDir))
 				Directory.CreateDirectory(picturesDir);
 
+			// Process image placeholders [@@placeholderName width height]
 			foreach (var placeholder in placeholders) {
-				// Only process image placeholders if the placeholder exists in the template
-				if (content.Contains($"##{placeholder.Key.Split('.')[0]}")) {
-					string key = placeholder.Key.Split('.')[0];
+				var imagePattern = new Regex($"\\[\\s*@@{placeholder.Key}+(?>\\s+(\\d+|\\*))?(?>\\s+(\\d+|\\*))?\\s*\\]", RegexOptions.Compiled);
+				foreach (Match image in imagePattern.Matches(content)) {
+					string key = placeholder.Key;
 					string imagePath = placeholder.Value.ToString();
-					string imageFileName;
-					string destImagePath;
-					string height = null;
-					string width = null;
-
-					if (placeholder.Key.Contains('.')) {
-						if (placeholders.ContainsKey($"{key}.path"))
-							imagePath = placeholders[$"{key}.path"].ToString();
-						if (placeholders.ContainsKey($"{key}.height"))
-							height = placeholders[$"{key}.height"].ToString();
-						if (placeholders.ContainsKey($"{key}.width"))
-							width = placeholders[$"{key}.width"].ToString();
-					}
+					string imageFileName = null;
+					string destImagePath = null;
+					string width = image.Groups[1].Value == "*" ? "" : image.Groups[1].Value;
+					string height = image.Groups[2].Value == "*" ? "" : image.Groups[2].Value;
 
 					// Download image if it's an HTTPS URL
 					if (imagePath.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) {
@@ -277,45 +288,47 @@ namespace FillODT {
 						File.Copy(imagePath, destImagePath, true);
 						TryResizeImage(destImagePath);
 					}
-					else {
-						content = content.Replace($"##{placeholder.Key}", "");
-						continue;
-					}
 
-					// Aspect ratio logic
-					if (string.IsNullOrEmpty(width) || string.IsNullOrEmpty(height)) {
-						try {
-							using var img = Image.FromFile(destImagePath);
-							double aspect = (double)img.Width / img.Height;
-							double? widthCm = null, heightCm = null;
+					string imageXml = "";
+					if (imageFileName != null && destImagePath != null) {
+						// Aspect ratio logic
+						if (string.IsNullOrEmpty(width) || string.IsNullOrEmpty(height)) {
+							try {
+								using var img = Image.FromFile(destImagePath);
 
-							if (!string.IsNullOrEmpty(width))
-								widthCm = ParseToCm(width);
-							if (!string.IsNullOrEmpty(height))
-								heightCm = ParseToCm(height);
+								if (string.IsNullOrEmpty(width) && string.IsNullOrEmpty(height))
+									height = "1in";
 
-							if (widthCm.HasValue && !heightCm.HasValue) {
-								heightCm = widthCm / aspect;
-								height = $"{heightCm.Value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)}cm";
+								double aspect = (double)img.Width / img.Height;
+								double? widthCm = null, heightCm = null;
+
+								if (!string.IsNullOrEmpty(width))
+									widthCm = ParseToCm(width);
+								if (!string.IsNullOrEmpty(height))
+									heightCm = ParseToCm(height);
+
+								if (widthCm.HasValue && !heightCm.HasValue) {
+									heightCm = widthCm / aspect;
+									height = $"{heightCm.Value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)}cm";
+								}
+								else if (!widthCm.HasValue && heightCm.HasValue) {
+									widthCm = heightCm * aspect;
+									width = $"{widthCm.Value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)}cm";
+								}
 							}
-							else if (!widthCm.HasValue && heightCm.HasValue) {
-								widthCm = heightCm * aspect;
-								width = $"{widthCm.Value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)}cm";
+							catch (Exception) {
+								Console.WriteLine($"Aspect ratio not applicable {destImagePath}");
 							}
 						}
-						catch (Exception) {
-							Console.WriteLine($"Aspect ratio not applicable {destImagePath}");
-						}
+
+						string odtImagePath = "Pictures/" + imageFileName;
+						string heightAttr = !string.IsNullOrEmpty(height) ? $" svg:height=\"{ConvertToOdtLength(height)}\"" : "";
+						string widthAttr = !string.IsNullOrEmpty(width) ? $" svg:width=\"{ConvertToOdtLength(width)}\"" : "";
+
+						imageXml =
+							$@"<draw:frame draw:name=""{placeholder.Key.Split('.')[0]}"" text:anchor-type=""as-char"" draw:z-index=""0""{widthAttr}{heightAttr}><draw:image xlink:href=""{odtImagePath}"" xlink:type=""simple"" xlink:show=""embed"" xlink:actuate=""onLoad""/></draw:frame>";
 					}
-
-					string odtImagePath = "Pictures/" + imageFileName;
-					string heightAttr = !string.IsNullOrEmpty(height) ? $" svg:height=\"{ConvertToOdtLength(height)}\"" : "";
-					string widthAttr = !string.IsNullOrEmpty(width) ? $" svg:width=\"{ConvertToOdtLength(width)}\"" : "";
-
-					string imageXml =
-						$@"<draw:frame draw:name=""{placeholder.Key.Split('.')[0]}"" text:anchor-type=""as-char"" draw:z-index=""0""{widthAttr}{heightAttr}><draw:image xlink:href=""{odtImagePath}"" xlink:type=""simple"" xlink:show=""embed"" xlink:actuate=""onLoad""/></draw:frame>";
-
-					content = content.Replace($"##{key}", imageXml);
+					content = content.Replace(image.Groups[0].Value, imageXml);
 				}
 			}
 
@@ -326,6 +339,7 @@ namespace FillODT {
 					string rowPattern = $@"(<table:table-row\b[^>]*>[\s\S]*?</table:table-row>)";
 					var rowMatches = Regex.Matches(content, rowPattern, RegexOptions.Singleline);
 
+					int row = 0;
 					foreach (Match rowMatch in rowMatches) {
 						string originalRow = rowMatch.Groups[1].Value;
 						// Only process rows that contain the array placeholder
@@ -339,6 +353,15 @@ namespace FillODT {
 
 						foreach (var item in items) {
 							string filledRow = originalRow;
+
+							// Replace image placeholders in the row
+							filledRow = ReplaceImagePlaceholders(
+								filledRow,
+								key => item.TryGetValue(key.Split('.').Last(), out var val) ? val.ToString() : null,
+								picturesDir,
+								filePath,
+								++row
+							);
 
 							// Replace all @@arrayName.field placeholders for this item
 							foreach (var field in item) {
@@ -377,15 +400,19 @@ namespace FillODT {
 				}
 			}
 
-			// Remove any leftover ##image placeholders
-			content = Regex.Replace(content, @"##[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)?", "");
+			// Remove any leftover @@image placeholders
+			var leftoverImages = new Regex($"\\[\\s*@@[a-zA-Z_0-9.]+(?>\\s+(\\d+|\\*))?(?>\\s+(\\d+|\\*))?\\s*\\]", RegexOptions.Compiled);
+			leftoverImages.Matches(content).ToList().ForEach(m => {
+				content = content.Replace(m.Groups[0].Value, "");
+			});
 
 			// Replace any remaining @@placeholder patterns with the noValueReplacement string
 			if (!string.IsNullOrEmpty(noValueReplacement))
 				content = Regex.Replace(content, @"@@[a-zA-Z0-9_.]+", noValueReplacement);
 
 			// Ensure the destination directory exists before writing
-			Directory.CreateDirectory(Path.GetDirectoryName(filePath));
+			if (Path.GetDirectoryName(filePath) != "")
+				Directory.CreateDirectory(Path.GetDirectoryName(filePath));
 			File.WriteAllText(filePath, content);
 		}
 
@@ -398,7 +425,8 @@ namespace FillODT {
 				File.Delete(outputOdtFilePath);
 
 			// Ensure the destination directory exists before writing
-			Directory.CreateDirectory(Path.GetDirectoryName(outputOdtFilePath));
+			if (Path.GetDirectoryName(outputOdtFilePath) != "")
+				Directory.CreateDirectory(Path.GetDirectoryName(outputOdtFilePath));
 			using var zip = new FileStream(outputOdtFilePath, FileMode.Create);
 			using var archive = new ZipArchive(zip, ZipArchiveMode.Create);
 			// Add mimetype file first, uncompressed
@@ -605,6 +633,120 @@ namespace FillODT {
 			catch (Exception ex) {
 				Console.WriteLine($"Warning: Could not resize image {imagePath}: {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
 			}
+		}
+
+		static void SanitizeODT(string extractPath) {
+			IdentifyAndRemoveUselessStyles(extractPath, "styles.xml");
+			IdentifyAndRemoveUselessStyles(extractPath, "content.xml");
+		}
+		static void IdentifyAndRemoveUselessStyles(string extractPath, string filename) {
+			string filePath = Path.Combine(extractPath, filename);
+			string fileContent = File.ReadAllText(filePath);
+
+			// Find all styles and their properties
+			var stylePattern = new Regex(@"<style:style style:name=""(\w*?)"" style:family=""text"">(.*?)<\/style:style>", RegexOptions.Singleline);
+			var matches = stylePattern.Matches(fileContent);
+
+			// Identify useless styles
+			var uselessStyles = new List<string>();
+			foreach (Match match in matches) {
+				string styleName = match.Groups[1].Value;
+				string properties = match.Groups[2].Value;
+
+				// Check if properties are empty or contain only default attributes
+				if (Regex.IsMatch(properties, @"<style:text-properties\s*\/>") ||
+					!Regex.IsMatch(properties, @"text:font-weight|text:font-size|text:color")) {
+					uselessStyles.Add(styleName);
+				}
+			}
+
+			// Create a pattern to remove spans with useless styles
+			string spanPattern = $@"<text:span text:style-name=""({string.Join("|", uselessStyles)})"">(.*?)<\/text:span>";
+
+			File.WriteAllText(filePath, Regex.Replace(fileContent, spanPattern, "$2"));
+		}
+
+		static string ReplaceImagePlaceholders(string input, Func<string, string> imagePathResolver, string picturesDir, string filePath, int row) {
+			return Regex.Replace(input, @"\[\s*@@([a-zA-Z0-9_.]+)(?>\s+([0-9.*]+))?(?>\s+([0-9.*]+))?\s*\]", match => {
+				string key = match.Groups[1].Value;
+				string widthStr = match.Groups[2].Value;
+				string heightStr = match.Groups[3].Value;
+
+				string imagePath = imagePathResolver(key);
+				if (string.IsNullOrEmpty(imagePath))
+					return "";
+
+				if (!Directory.Exists(picturesDir))
+					Directory.CreateDirectory(picturesDir);
+
+				string imageFileName;
+				string destImagePath;
+
+				// Download/copia/genera l'immagine
+				if (imagePath.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) {
+					using var httpClient = new HttpClient();
+					var imageBytes = httpClient.GetByteArrayAsync(imagePath).Result;
+					imageFileName = $"{key}_{Path.GetFileName(new Uri(imagePath).AbsolutePath)}";
+					destImagePath = Path.Combine(picturesDir, imageFileName);
+					File.WriteAllBytes(destImagePath, imageBytes);
+					TryResizeImage(destImagePath);
+				}
+				else if (imagePath.StartsWith("qrcode://", StringComparison.OrdinalIgnoreCase)) {
+					using QRCoder.QRCodeGenerator qrGenerator = new QRCoder.QRCodeGenerator();
+					using QRCoder.QRCodeData qrCodeData = qrGenerator.CreateQrCode(imagePath[9..], QRCoder.QRCodeGenerator.ECCLevel.Q);
+					using QRCoder.BitmapByteQRCode qrCode = new QRCoder.BitmapByteQRCode(qrCodeData);
+					using MemoryStream ms = new(qrCode.GetGraphic(20));
+					using Bitmap qrCodeImage = new Bitmap(ms);
+					imageFileName = $"{key}{row}_qrcode.png";
+					destImagePath = Path.Combine(picturesDir, imageFileName);
+					qrCodeImage.Save(destImagePath, System.Drawing.Imaging.ImageFormat.Png);
+				}
+				else if (File.Exists(imagePath)) {
+					imageFileName = Path.GetFileName(imagePath);
+					destImagePath = Path.Combine(picturesDir, imageFileName);
+					File.Copy(imagePath, destImagePath, true);
+					TryResizeImage(destImagePath);
+				}
+				else {
+					return "";
+				}
+
+				// Calcola width/height in cm
+				string width = null, height = null;
+				double? widthCm = null, heightCm = null;
+				try {
+					using var img = Image.FromFile(destImagePath);
+					double aspect = (double)img.Width / img.Height;
+
+					if (widthStr != "*" && double.TryParse(widthStr, out double w))
+						widthCm = w;
+					if (heightStr != "*" && double.TryParse(heightStr, out double h))
+						heightCm = h;
+
+					if (widthCm.HasValue && !heightCm.HasValue) {
+						heightCm = widthCm / aspect;
+					}
+					else if (!widthCm.HasValue && heightCm.HasValue) {
+						widthCm = heightCm * aspect;
+					}
+					else if (!widthCm.HasValue && !heightCm.HasValue) {
+						widthCm = img.Width * 0.0352778;
+						heightCm = img.Height * 0.0352778;
+					}
+
+					width = $"{widthCm.Value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)}cm";
+					height = $"{heightCm.Value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)}cm";
+				}
+				catch (Exception) {
+					// fallback: no width/height
+				}
+
+				string odtImagePath = "Pictures/" + imageFileName;
+				string heightAttr = !string.IsNullOrEmpty(height) ? $" svg:height=\"{ConvertToOdtLength(height)}\"" : "";
+				string widthAttr = !string.IsNullOrEmpty(width) ? $" svg:width=\"{ConvertToOdtLength(width)}\"" : "";
+
+				return $@"<draw:frame draw:name=""{key}"" text:anchor-type=""as-char"" draw:z-index=""0""{widthAttr}{heightAttr}><draw:image xlink:href=""{odtImagePath}"" xlink:type=""simple"" xlink:show=""embed"" xlink:actuate=""onLoad""/></draw:frame>";
+			});
 		}
 	}
 }

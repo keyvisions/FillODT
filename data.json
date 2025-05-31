@@ -4,19 +4,21 @@
 	"age": 30,
 	"email": "john.doe@company.com",
 	"phone": "+1234567890",
-	"image": { "path": ".\\media\\FillODT.png", "height": "2cm" },
-	"qrcode": { "path": "qrcode://1234567890", "height": "4cm" },
+	"image": ".\\media\\FillODT.png",
+	"qrcode": "qrcode://1234567890",
 	"address": {
 		"street": "123 Main St",
 		"city": "<b>Anytown</b>",
 		"state": "CA",
-		"zip": "12345"
+		"zip": "12345",
+		"qrcode": "qrcode://123 Main St, Anytown, CA, 12345"
 	},
 	"jobs": [
 		{
 			"company": "Tech Solutions",
 			"position": "Software Engineer",
-			"duration": "2 years"
+			"duration": "2 years",
+			"qrcode": "qrcode://Tech Solutions"
 		},
 		{
 			"company": "Web Innovations",
@@ -26,12 +28,14 @@
 		{
 			"company": "Data Corp",
 			"position": "Data Analyst",
-			"duration": "6 months"
+			"duration": "6 months",
+			"qrcode": "qrcode://Data Corp"
 		},
 		{
 			"company": "Cloud Services",
 			"position": "DevOps Engineer",
-			"duration": "1 year"
+			"duration": "1 year",
+			"qrcode": "qrcode://Cloud Services"
 		},
 		{
 			"company": "AI Solutions",

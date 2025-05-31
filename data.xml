@@ -4,25 +4,21 @@
   <age>30</age>
   <email>john.doe@company.com</email>
   <phone>+1234567890</phone>
-  <image>
-    <path>.\\media\\FillODT.png</path>
-    <height>2cm</height>
-  </image>
-  <qrcode>
-    <path>qrcode://1234567890</path>
-    <height>4cm</height>
-  </qrcode>
+  <image>.\\media\\FillODT.png</image>
+  <qrcode>qrcode://1234567890</qrcode>
   <address>
     <street>123 Main St</street>
     <city>&lt;b&gt;Anytown&lt;/b&gt;</city>
     <state>CA</state>
     <zip>12345</zip>
+    <qrcode>qrcode://123 Main St, Anytown, CA, 12345</qrcode>
   </address>
   <jobs>
     <job>
       <company>Tech Solutions</company>
       <position>Software Engineer</position>
       <duration>2 years</duration>
+      <qrcode>qrcode://Tech Solutions</qrcode>
     </job>
     <job>
       <company>Web Innovations</company>
@@ -33,11 +29,13 @@
       <company>Data Corp</company>
       <position>Data Analyst</position>
       <duration>6 months</duration>
+      <qrcode>qrcode://Data Corp</qrcode>
     </job>
     <job>
       <company>Cloud Services</company>
       <position>DevOps Engineer</position>
       <duration>1 year</duration>
+      <qrcode>qrcode://Cloud Services</qrcode>
     </job>
     <job>
       <company>AI Solutions</company>
