@@ -2,7 +2,7 @@
 
 **FillODT** is a command-line tool that takes an ODT (Open Document Text) template containing `@@name` and `[@@image (W|*) (H|*)]` placeholders and a JSON or an XML file with key-value pairs, then generates a new ODT file with all placeholders replaced by their corresponding values as specified in the JSON or XML file.
 
-- Supports simple text, HTML fragments, and images and QRCode generation.
+- Supports simple text, HTML fragments, images and QRCode generation.
 - Handles array data for table row expansion.
 - Allows image sizing.
 - Can output to PDF (requires LibreOffice).
@@ -15,7 +15,7 @@
 
 ## Real-world Usage
 
-**FillODT** is also used as a backend tool in web servers to generate PDFs on demand for business documents such as:
+**FillODT** is used as a backend tool in web servers to generate PDFs on demand for business documents such as:
 
 - Shipping labels
 - Plates
@@ -63,12 +63,12 @@ You must specify either a JSON file (`--json data.json`) or an XML file (`--xml 
 
 **Options:**
 
-| Option                | Description                                                                                      |
-|-----------------------|--------------------------------------------------------------------------------------------------|
-| `--overwrite`         | Overwrite the output file if it exists.                                                          |
-| `--pdf`               | Also generate a PDF (requires LibreOffice).                                                      |
-| `--novalue <text>`    | Replace any unreplaced placeholders with the given text.                                         |
-| `--sanitize`          | Remove useless `<text:style>` introduced in the ODT during editing. FillODT should be run in sanitize mode on a ODT template after it has been edited. |
+| Option                   | Description                                                                                      |
+|--------------------------|--------------------------------------------------------------------------------------------------|
+| `--overwrite`            | Overwrite the output file if it exists.                                                          |
+| `--pdf`                  | Also generate a PDF (requires LibreOffice).                                                      |
+| `--novalue <text>`       | Replace any unreplaced placeholders with the given text.                                         |
+| `--sanitize`             | Remove useless `<text:style>` introduced in the ODT during editing. FillODT should be run in sanitize mode on a ODT template after it has been edited. |
 
 ---
 
