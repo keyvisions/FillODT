@@ -254,7 +254,7 @@ namespace FillODT {
 
 			// Process image placeholders [@@placeholderName width height]
 			foreach (var placeholder in placeholders) {
-				var imagePattern = new Regex($"\\[\\s*@@{placeholder.Key}+(?>\\s+(\\d+|\\*))?(?>\\s+(\\d+|\\*))?\\s*\\]", RegexOptions.Compiled);
+				var imagePattern = new Regex($"\\[\\s*@@{placeholder.Key}+(?>\\s+(\\d+(\\.\\d+)?|\\*))?(?>\\s+(\\d+(\\.\\d+)?|\\*))?\\s*\\]", RegexOptions.Compiled);
 				foreach (Match image in imagePattern.Matches(content)) {
 					string key = placeholder.Key;
 					string imagePath = placeholder.Value.ToString();
@@ -401,7 +401,7 @@ namespace FillODT {
 			}
 
 			// Remove any leftover @@image placeholders
-			var leftoverImages = new Regex($"\\[\\s*@@[a-zA-Z_0-9.]+(?>\\s+(\\d+|\\*))?(?>\\s+(\\d+|\\*))?\\s*\\]", RegexOptions.Compiled);
+			var leftoverImages = new Regex($"\\[\\s*@@[a-zA-Z_0-9.]+(?>\\s+(\\d+(\\.\\d+)?|\\*))?(?>\\s+(\\d+(\\.\\d+)?|\\*))?\\s*\\]", RegexOptions.Compiled);
 			leftoverImages.Matches(content).ToList().ForEach(m => {
 				content = content.Replace(m.Groups[0].Value, "");
 			});
