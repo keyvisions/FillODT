@@ -119,16 +119,21 @@ namespace FillODT {
 			}
 
 			Dictionary<string, object> placeholders = null;
-			if (!string.IsNullOrEmpty(jsonFilePath)) {
-				placeholders = FlattenPlaceholders(ReadJsonFile(jsonFilePath));
-			}
-			else if (!string.IsNullOrEmpty(xmlFilePath)) {
-				var xmlDict = ReadXmlFile(xmlFilePath);
-				string jsonFromXml = JsonSerializer.Serialize(xmlDict);
-				placeholders = FlattenPlaceholders(JsonSerializer.Deserialize<Dictionary<string, object>>(jsonFromXml));
-			}
-			else {
-				Console.WriteLine("Error: You must specify either --json or --xml.");
+			try {
+				if (!string.IsNullOrEmpty(jsonFilePath)) {
+					placeholders = FlattenPlaceholders(ReadJsonFile(jsonFilePath));
+				}
+				else if (!string.IsNullOrEmpty(xmlFilePath)) {
+					var xmlDict = ReadXmlFile(xmlFilePath);
+					string jsonFromXml = JsonSerializer.Serialize(xmlDict);
+					placeholders = FlattenPlaceholders(JsonSerializer.Deserialize<Dictionary<string, object>>(jsonFromXml));
+				}
+				else {
+					Console.WriteLine("Error: You must specify either --json or --xml.");
+					return;
+				}
+			} catch (Exception) {
+				Console.WriteLine($"Error reading or parsing the data file");
 				return;
 			}
 
