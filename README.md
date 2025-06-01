@@ -1,6 +1,6 @@
 # FillODT.exe
 
-**FillODT** is a command-line tool that takes an ODT (Open Document Text) template containing `@@name` and `[@@image (W|*) (H|*)]` key placeholders and a JSON or an XML file with key-value pairs, then generates a new ODT file with all key placeholders replaced by their corresponding values as specified in the JSON or XML file.
+**FillODT** is a command-line tool that takes an ODT (Open Document Text) template containing `@@name` and `[@@name (W|*) (H|*)]` key placeholders and a JSON or an XML file with key-value pairs, then generates a new ODT file with all key placeholders replaced by their corresponding values as specified in the JSON or XML file.
 
 - Supports text, simple HTML fragments, images and QRCode generation.
 - Handles array data for table row expansion.
@@ -29,7 +29,7 @@ This makes it ideal for automated document workflows, e-commerce, logistics, and
 ---
 
 ## Image placeholder syntax
-The `[@@image (W|*) (H|*)]` key placeholder Width and Height are in cm, when an * is used the associated dimension is set based on the aspect ratio of the image (dimensions are preset to 2 *), placeholders in your ODT template can be defined as follows:
+To indicate that a placeholder should be replaced with an image, wrap the key in square brackets: `[@@name]`. You can control the image size using the syntax `[@@name (W|*) (H|*)]`, where `W` and `H` are the width and height in centimeters. Use `*` to automatically scale the dimension based on the image's aspect ratio. If no size is specified, the default is `[@@name * 2.54]` (height of 2.54 cm, width auto). The value for an image placeholder can be any of the following:
 
 - **A local file:**  
   Specify a path to an image file on disk.
