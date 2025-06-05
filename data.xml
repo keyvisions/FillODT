@@ -1,5 +1,6 @@
 <data>
   <incomplete>0</incomplete>
+  <showme>false</showme>
   <name>John Doe</name>
   <age>30</age>
   <email>john.doe@company.com</email>

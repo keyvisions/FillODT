@@ -7,6 +7,7 @@
 - Allows image sizing.
 - Can output to PDF (requires LibreOffice).
 - Includes options for overwriting, empty placeholder replacement, and sanitizing ODT.
+- **Conditional annotation regions:** If the ODT template contains an annotation with a key placeholder (e.g. `<office:annotation>@@show_section</office:annotation> ... <office:annotation-end/>`), and the corresponding key in your data does not resolve to `true`, the entire annotated region (including the annotation, its content, and the annotation-end) will be removed from the generated document.
 - If the data file contains the `incomplete` key set to `1`, the generated document's filename will have two underscores appended before the extension (for example, `document__.pdf`). This indicates that the document is incomplete.
 
 [Download the latest Windows executable](https://github.com/keyvisions/FillODT/releases/latest)

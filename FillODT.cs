@@ -132,7 +132,8 @@ namespace FillODT {
 					Console.WriteLine("Error: You must specify either --json or --xml.");
 					return;
 				}
-			} catch (Exception) {
+			}
+			catch (Exception) {
 				Console.WriteLine($"Error reading or parsing the data file");
 				return;
 			}
@@ -256,6 +257,38 @@ namespace FillODT {
 			string picturesDir = Path.Combine(Path.GetDirectoryName(filePath), "Pictures");
 			if (!Directory.Exists(picturesDir))
 				Directory.CreateDirectory(picturesDir);
+
+			// Remove annotation regions if placeholder does not resolve to true
+			content = Regex.Replace(content,
+				@"(<office:annotation\b[^>]*>[\s\S]*?@@([a-zA-Z0-9_.]+)[\s\S]*?</office:annotation>)([\s\S]*?)(<office:annotation-end\b[^>]*>)",
+				match => {
+					string annotation = match.Groups[1].Value;
+					string placeholderKey = match.Groups[2].Value;
+					string region = match.Groups[3].Value;
+					string annotationEnd = match.Groups[4].Value;
+
+					// Try to resolve the placeholder to a boolean true
+					bool isTrue = false;
+					if (placeholders.TryGetValue(placeholderKey, out var val)) {
+						if (val is JsonElement je) {
+							isTrue = (je.ValueKind == JsonValueKind.True) ||
+								(je.ValueKind == JsonValueKind.Number && je.GetInt32() == 1) ||
+								(je.ValueKind == JsonValueKind.String && je.GetString()?.ToLowerInvariant() == "true");
+						}
+						else if (val is bool b) {
+							isTrue = b;
+						}
+						else if (val is int i) {
+							isTrue = i == 1;
+						}
+						else if (val is string s) {
+							isTrue = s.ToLowerInvariant() == "true";
+						}
+					}
+					// If not true, remove the annotation and region
+					return isTrue ? match.Value : "";
+				},
+				RegexOptions.IgnoreCase | RegexOptions.Singleline);
 
 			// Process image placeholders [@@placeholderName width height]
 			foreach (var placeholder in placeholders) {
