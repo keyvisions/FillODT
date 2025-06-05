@@ -1,6 +1,6 @@
 # FillODT.exe
 
-**FillODT** is a command-line tool that takes an ODT (Open Document Text) template containing `@@name` and `[@@name (W|*) (H|*)]` key placeholders and a JSON or an XML file with key-value pairs, then generates a new ODT file with all key placeholders replaced by their corresponding values as specified in the JSON or XML file.
+**FillODT** is a command-line utility that processes an ODT (Open Document Text) template containing placeholders like `@@name` and `[@@name (W|*) (H|*)]`. It replaces these placeholders with values from a provided JSON or XML file, generating a new ODT file with all substitutions applied ([see example](#example)).
 
 - Supports text, simple HTML fragments, images and QRCode generation.
 - Handles array data for table row expansion.
@@ -29,7 +29,8 @@ This makes it ideal for automated document workflows, e-commerce, logistics, and
 ---
 
 ## Image placeholder syntax
-To indicate that a placeholder should be replaced with an image, wrap the key in square brackets: `[@@name]`. You can control the image size using the syntax `[@@name (W|*) (H|*)]`, where `W` and `H` are the width and height in centimeters. Use `*` to automatically scale the dimension based on the image's aspect ratio. If no size is specified, the default is `[@@name * 2.54]` (height of 2.54 cm, width auto). The value for an image placeholder can be any of the following:
+
+To indicate that a placeholder represents an image, wrap the key in square brackets: `[@@name]`. You can control the image size using the syntax `[@@name (W|*) (H|*)]`, where `W` and `H` are the width and height in centimeters. Use `*` to automatically scale the dimension based on the image's aspect ratio. If no size is specified, the default is `[@@name * 2.54]` (height of 2.54 cm, width auto). The value for an image placeholder can be any of the following:
 
 - **A local file:**  
   Specify a path to an image file on disk.
@@ -59,7 +60,7 @@ FillODT.exe --template <template.odt> --json <data.json> --destfile <output.odt>
 FillODT.exe --template <template.odt> --xml <data.xml> --destfile <output.odt> [options]
 ```
 
-You must specify either a JSON file (`--json data.json`) or an XML file (`--xml data.xml`) as your data source.
+You must provide a data source using either a JSON file (`--json data.json`) or an XML file (`--xml data.xml`). Both template and data files can be specified as local paths or remote URLs.
 
 **Options:**
 
