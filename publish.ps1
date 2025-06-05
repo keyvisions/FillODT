@@ -1,4 +1,10 @@
-﻿# 1. Increment patch version in FillODT.csproj
+﻿# Author: Giancarlo Trevisan
+# Date: 2025-06-05
+# Description: 
+#   This script increments the patch version in FillODT.csproj, publishes the project for win-x64,
+#   renames and zips the output folder, and moves the zip to the current directory.
+
+# 1. Increment patch version in FillODT.csproj
 $csproj = Join-Path $pwd.Path "FillODT.csproj"
 [xml]$proj = Get-Content $csproj -Raw
 
