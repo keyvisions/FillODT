@@ -286,9 +286,30 @@ namespace FillODT {
 						}
 					}
 					// If not true, remove the annotation and region
-					return isTrue ? match.Value : "";
+					return isTrue ? match.Value : "@@removeRegion";
 				},
 				RegexOptions.IgnoreCase | RegexOptions.Singleline);
+
+			// Remove only the table-row that contains @@removeRegion and has no other content
+			content = Regex.Replace(
+				content,
+				@"<table:table-row\b[^>]*>[\s\S]*?<\/table:table-row>",
+				m => {
+					// Remove if contains @@removeRegion and, aside from that, the inner text is empty/whitespace
+					if (m.Value.Contains("@@removeRegion")) {
+						// Remove @@removeRegion and check if the rest is empty/whitespace
+						var inner = Regex.Replace(m.Value, "@@removeRegion", "", RegexOptions.IgnoreCase);
+						// Remove all tags to get inner text
+						var innerText = Regex.Replace(inner, "<.*?>", "").Trim();
+						if (string.IsNullOrEmpty(innerText))
+							return "";
+					}
+					return m.Value;
+				},
+				RegexOptions.IgnoreCase
+			);
+			// Remove all @@removeRegion placeholders left in the content
+			content = Regex.Replace(content, "@@removeRegion", "", RegexOptions.IgnoreCase);
 
 			// Process image placeholders [@@placeholderName width height]
 			foreach (var placeholder in placeholders) {
