@@ -52,6 +52,23 @@ namespace FillODT {
 				}
 			}
 
+			// If --sanitize is present, only --template is required
+			if (sanitize) {
+				if (string.IsNullOrEmpty(odtFilePath)) {
+					Console.WriteLine("Usage: FillODT --template template.odt --sanitize");
+					return;
+				}
+				string sanitizeFolder = ExtractOdt(odtFilePath);
+				if (string.IsNullOrEmpty(sanitizeFolder)) {
+					Console.WriteLine($"Error accessing ODT template '{odtFilePath}': does not exist or is in use.");
+					return;
+				}
+				SanitizeODT(sanitizeFolder);
+				CreateOdtFromExtracted(sanitizeFolder, odtFilePath);
+				Console.WriteLine("Sanitized ODT file by removing useless styles.");
+				return;
+			}
+
 			// Force output file to end with .odt
 			if (!string.IsNullOrEmpty(outputOdtFilePath) && !outputOdtFilePath.EndsWith(".odt", StringComparison.OrdinalIgnoreCase))
 				outputOdtFilePath += ".odt";
@@ -152,12 +169,6 @@ namespace FillODT {
 			string extractedFolder = ExtractOdt(odtFilePath);
 			if (string.IsNullOrEmpty(extractedFolder)) {
 				Console.WriteLine($"Error accessing ODT template '{odtFilePath}': does not exists or is in use.");
-				return;
-			}
-			if (sanitize) {
-				SanitizeODT(extractedFolder);
-				CreateOdtFromExtracted(extractedFolder, odtFilePath);
-				Console.WriteLine("Sanitized ODT file by removing useless styles.");
 				return;
 			}
 
@@ -313,7 +324,7 @@ namespace FillODT {
 
 			// Process image placeholders [@@placeholderName width height]
 			foreach (var placeholder in placeholders) {
-				var imagePattern = new Regex($"\\[\\s*@@{placeholder.Key}+(?>\\s+(\\d+(\\.\\d+)?|\\*))?(?>\\s+(\\d+(\\.\\d+)?|\\*))?\\s*\\]", RegexOptions.Compiled);
+				var imagePattern = new Regex($"\\[\\s*@@{placeholder.Key}(?>\\s+(\\d+(?>\\.\\d+)?|\\*))?(?>\\s+(\\d+(?>\\.\\d+)?|\\*))?\\s*\\]", RegexOptions.Compiled);
 				foreach (Match image in imagePattern.Matches(content)) {
 					string key = placeholder.Key;
 					string imagePath = placeholder.Value.ToString();
@@ -381,8 +392,8 @@ namespace FillODT {
 						}
 
 						string odtImagePath = "Pictures/" + imageFileName;
-						string heightAttr = !string.IsNullOrEmpty(height) ? $" svg:height=\"{ConvertToOdtLength(height)}\"" : "";
-						string widthAttr = !string.IsNullOrEmpty(width) ? $" svg:width=\"{ConvertToOdtLength(width)}\"" : "";
+						string heightAttr = !string.IsNullOrEmpty(height) ? $" svg:height=\"{ConvertToOdtLength(height).Replace(",", ".")}\"" : "";
+						string widthAttr = !string.IsNullOrEmpty(width) ? $" svg:width=\"{ConvertToOdtLength(width).Replace(",", ".")}\"" : "";
 
 						imageXml =
 							$@"<draw:frame draw:name=""{placeholder.Key.Split('.')[0]}"" text:anchor-type=""as-char"" draw:z-index=""0""{widthAttr}{heightAttr}><draw:image xlink:href=""{odtImagePath}"" xlink:type=""simple"" xlink:show=""embed"" xlink:actuate=""onLoad""/></draw:frame>";
@@ -573,7 +584,7 @@ namespace FillODT {
 			if (value.EndsWith("cm") || value.EndsWith("mm") || value.EndsWith("in") || value.EndsWith("pt"))
 				return value;
 			// Default: treat as cm
-			if (double.TryParse(value, out double val))
+			if (double.TryParse(value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double val))
 				return $"{val}cm";
 			return value;
 		}
