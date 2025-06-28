@@ -16,7 +16,7 @@
 	},
 	"jobs": [
 		{
-			"company": "Tech Solutions",
+			"company": "Tech & Solutions",
 			"position": "Software Engineer",
 			"duration": "2 years",
 			"qrcode": "qrcode://Tech Solutions"
@@ -27,13 +27,13 @@
 			"duration": "1 year"
 		},
 		{
-			"company": "Data Corp",
+			"company": "Data > Corp",
 			"position": "Data Analyst",
 			"duration": "6 months",
 			"qrcode": "qrcode://Data Corp"
 		},
 		{
-			"company": "Cloud Services",
+			"company": "Cloud <> Services",
 			"position": "DevOps Engineer",
 			"duration": "1 year",
 			"qrcode": "qrcode://Cloud Services"

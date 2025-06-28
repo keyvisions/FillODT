@@ -188,9 +188,13 @@ namespace FillODT {
 			CreateOdtFromExtracted(extractedFolder, outputOdtFilePath);
 
 			if (convertToPdf) {
-				ConvertOdtToPdf(outputOdtFilePath);
-				File.Delete(outputOdtFilePath);
-				Console.WriteLine($"PDF created and ODT deleted: {Path.ChangeExtension(outputOdtFilePath, ".pdf")}");
+				if (ConvertOdtToPdf(outputOdtFilePath)) {
+					File.Delete(outputOdtFilePath);
+					Console.WriteLine($"PDF created and ODT deleted: {Path.ChangeExtension(outputOdtFilePath, ".pdf")}");
+				}
+				else {
+					Console.WriteLine($"Error: PDF conversion failed. The ODT file was kept at: {outputOdtFilePath}");
+				}
 			}
 			else
 				Console.WriteLine($"Output ODT file created at: {outputOdtFilePath}");
@@ -435,7 +439,18 @@ namespace FillODT {
 
 							// Replace all @@arrayName.field placeholders for this item
 							foreach (var field in item) {
-								filledRow = filledRow.Replace($"@@{placeholder.Key}.{field.Key}", field.Value.ToString());
+								string valueToInsert = field.Value.ToString();
+
+								// Escape special XML characters unless it's simple HTML
+								if (!string.IsNullOrEmpty(valueToInsert)) {
+									if (Regex.IsMatch(valueToInsert, @"<[a-z][\s\S]*>")) { // Basic HTML check
+										valueToInsert = HtmlToOdtXml(valueToInsert);
+									}
+									else {
+										valueToInsert = System.Security.SecurityElement.Escape(valueToInsert);
+									}
+								}
+								filledRow = filledRow.Replace($"@@{placeholder.Key}.{field.Key}", valueToInsert);
 							}
 
 							// Replace all other flattened placeholders in the row
@@ -462,9 +477,15 @@ namespace FillODT {
 					string key = placeholder.Key;
 					string value = jsonElement.ToString();
 
-					// Check for HTML and convert
-					if (!string.IsNullOrEmpty(value) && Regex.IsMatch(value, @"<[^>]+>"))
-						value = HtmlToOdtXml(value);
+					// Check for HTML and convert, otherwise escape for XML
+					if (!string.IsNullOrEmpty(value)) {
+						if (Regex.IsMatch(value, @"<[a-z][\s\S]*>")) { // Basic HTML check
+							value = HtmlToOdtXml(value);
+						}
+						else {
+							value = System.Security.SecurityElement.Escape(value);
+						}
+					}
 
 					content = content.Replace($"@@{key}", value);
 				}
@@ -533,7 +554,7 @@ namespace FillODT {
 			return flatDict;
 		}
 
-		static void ConvertOdtToPdf(string odtPath) {
+		static bool ConvertOdtToPdf(string odtPath) {
 			var process = new System.Diagnostics.Process();
 			process.StartInfo.FileName = "soffice";
 			process.StartInfo.Arguments = $"--headless --convert-to pdf \"{odtPath}\" --outdir \"{Path.GetDirectoryName(odtPath)}\"";
@@ -541,8 +562,27 @@ namespace FillODT {
 			process.StartInfo.UseShellExecute = false;
 			process.StartInfo.RedirectStandardOutput = true;
 			process.StartInfo.RedirectStandardError = true;
-			process.Start();
-			process.WaitForExit();
+			try {
+				process.Start();
+				string error = process.StandardError.ReadToEnd();
+				process.WaitForExit();
+
+				if (process.ExitCode != 0) {
+					Console.WriteLine("Error during PDF conversion.");
+					if (!string.IsNullOrEmpty(error)) {
+						Console.WriteLine($"Details: {error}");
+					}
+					return false;
+				}
+
+				string pdfPath = Path.ChangeExtension(odtPath, ".pdf");
+				return File.Exists(pdfPath);
+			}
+			catch (Exception ex) {
+				Console.WriteLine("Error running LibreOffice. Is it installed and in your system's PATH?");
+				Console.WriteLine($"Details: {ex.Message}");
+				return false;
+			}
 		}
 
 		// Converts a limited set of HTML tags to ODT XML equivalents
