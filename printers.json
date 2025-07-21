@@ -1,0 +1,80 @@
+[
+	{
+		"label": "Shipping",
+		"printerName": "Zebra ZT230",
+		"ghostscriptProfile": "/screen",
+		"optimizePdf": true,
+		"copies": 1,
+		"paperSize": "4x6",
+		"docType": "Label",
+		"driverConfig": {
+			"darkness": 15,
+			"cutMode": "per-page"
+		}
+	},
+	{
+		"label": "Invoice",
+		"printerName": "HP LaserJet Pro M404dn",
+		"ghostscriptProfile": "/screen",
+		"optimizePdf": false,
+		"copies": 1,
+		"paperSize": "A4",
+		"docType": "Invoice",
+		"driverConfig": {
+			"duplex": true,
+			"colorMode": "black-and-white"
+		}
+	},
+	{
+		"label": "Reports",
+		"printerName": "Canon imageCLASS MF445dw",
+		"ghostscriptProfile": "/screen",
+		"optimizePdf": true,
+		"copies": 2,
+		"paperSize": "Letter",
+		"docType": "Report",
+		"driverConfig": {
+			"duplex": true,
+			"colorMode": "color"
+		}
+	},
+	{
+		"label": "Marketing Materials",
+		"printerName": "Epson EcoTank ET-4760",
+		"ghostscriptProfile": "/screen",
+		"optimizePdf": true,
+		"copies": 1,
+		"paperSize": "A4",
+		"docType": "Marketing",
+		"driverConfig": {
+			"duplex": false,
+			"colorMode": "color"
+		}
+	},
+	{
+		"label": "Technical Drawings",
+		"printerName": "HP DesignJet T120",
+		"ghostscriptProfile": "/screen",
+		"optimizePdf": true,
+		"copies": 1,
+		"paperSize": "A1",
+		"docType": "Technical Drawing",
+		"driverConfig": {
+			"duplex": false,
+			"colorMode": "color"
+		}
+	},
+	{
+		"label": "Test HP M1536",
+		"printerName": "HP LaserJet M1536",
+		"ghostscriptProfile": "/screen",
+		"optimizePdf": true,
+		"copies": 1,
+		"paperSize": "A4",
+		"docType": "Test",
+		"driverConfig": {
+			"duplex": true,
+			"colorMode": "black-and-white"
+		}
+	}
+]
