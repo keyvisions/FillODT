@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.IO.Compression;
@@ -22,6 +23,7 @@ namespace FillODT {
 			bool overrideDest = false;
 			string noValueReplacement = null;
 			bool sanitize = false;
+			string printConfig = null;
 
 			for (int i = 0; i < args.Length; i++) {
 				switch (args[i]) {
@@ -42,6 +44,10 @@ namespace FillODT {
 						break;
 					case "--pdf":
 						convertToPdf = true;
+						break;
+					case "--print":
+						if (i + 1 < args.Length) printConfig = args[++i];
+						convertToPdf = true; // Imply --pdf
 						break;
 					case "--overwrite":
 						overrideDest = true;
@@ -190,14 +196,37 @@ namespace FillODT {
 			if (convertToPdf) {
 				if (ConvertOdtToPdf(outputOdtFilePath)) {
 					File.Delete(outputOdtFilePath);
-					Console.WriteLine($"PDF created and ODT deleted: {Path.ChangeExtension(outputOdtFilePath, ".pdf")}");
+					string pdfPath = Path.ChangeExtension(outputOdtFilePath, ".pdf");
+
+					bool shouldOptimize = false;
+					if (!string.IsNullOrEmpty(printConfig) && IsThermalPrinter(printConfig)) {
+						shouldOptimize = true;
+						Console.WriteLine($"Thermal printer detected: {printConfig}, optimizing PDF.");
+					}
+
+					if (shouldOptimize) {
+						if (OptimizePdfWithGhostscript(pdfPath))
+							Console.WriteLine($"Thermal-optimized PDF ready: {pdfPath}");
+						else
+							Console.WriteLine("Ghostscript optimization failed.");
+					}
+					else {
+						Console.WriteLine($"Standard PDF ready: {pdfPath}");
+					}
+
+					// Print dispatch
+					if (!string.IsNullOrEmpty(printConfig)) {
+						bool printOk = PrintPdf(pdfPath, printConfig, shouldOptimize);
+						Console.WriteLine(printOk
+							? $"PDF sent to printer '{printConfig}'."
+							: $"Failed to print to '{printConfig}'.");
+					}
 				}
 				else {
-					Console.WriteLine($"Error: PDF conversion failed. The ODT file was kept at: {outputOdtFilePath}");
+					Console.WriteLine($"PDF conversion failed, ODT retained: {outputOdtFilePath}");
 				}
 			}
-			else
-				Console.WriteLine($"Output ODT file created at: {outputOdtFilePath}");
+
 		}
 
 		static Dictionary<string, object> ReadJsonFile(string jsonFilePath) {
@@ -857,6 +886,126 @@ namespace FillODT {
 
 				return $@"<draw:frame draw:name=""{key}"" text:anchor-type=""as-char"" draw:z-index=""0""{widthAttr}{heightAttr}><draw:image xlink:href=""{odtImagePath}"" xlink:type=""simple"" xlink:show=""embed"" xlink:actuate=""onLoad""/></draw:frame>";
 			});
+		}
+
+		static bool OptimizePdfWithGhostscript(string pdfPath) {
+			string optimizedPath = Path.Combine(Path.GetDirectoryName(pdfPath),
+										Path.GetFileNameWithoutExtension(pdfPath) + "_optimized.pdf");
+
+			var gsArgs = $"-dNOPAUSE -dBATCH -sDEVICE=pdfwrite " +
+							 "-dCompatibilityLevel=1.4 -dPDFSETTINGS=/screen " +
+							 $"-sOutputFile=\"{optimizedPath}\" \"{pdfPath}\"";
+
+			var process = new Process {
+				StartInfo = new ProcessStartInfo {
+					FileName = "gs",
+					Arguments = gsArgs,
+					UseShellExecute = false,
+					CreateNoWindow = true,
+					RedirectStandardOutput = true,
+					RedirectStandardError = true,
+				}
+			};
+
+			try {
+				process.Start();
+				string output = process.StandardOutput.ReadToEnd();
+				string error = process.StandardError.ReadToEnd();
+				process.WaitForExit();
+
+				if (process.ExitCode == 0 && File.Exists(optimizedPath)) {
+					File.Delete(pdfPath); // Optionally replace original
+					File.Move(optimizedPath, pdfPath);
+					return true;
+				}
+
+				Console.WriteLine("Ghostscript Error: " + error);
+				return false;
+			}
+			catch (Exception ex) {
+				Console.WriteLine("Ghostscript execution failed: " + ex.Message);
+				return false;
+			}
+		}
+		static bool IsThermalPrinter(string printerName) {
+			try {
+				using var searcher = new System.Management.ManagementObjectSearcher("SELECT * FROM Win32_Printer");
+				foreach (var printer in searcher.Get()) {
+					string name = printer["Name"]?.ToString();
+					if (name?.Equals(printerName, StringComparison.OrdinalIgnoreCase) == true) {
+						// Heuristics: look at model name for "Zebra", "Bixolon", etc.
+						string description = printer["DriverName"]?.ToString() ?? "";
+						if (description.ToLowerInvariant().Contains("zebra") ||
+							 description.ToLowerInvariant().Contains("bixolon") ||
+							 description.ToLowerInvariant().Contains("datamax") ||
+							 description.ToLowerInvariant().Contains("sato") ||
+							 description.ToLowerInvariant().Contains("tsp")) {
+							return true;
+						}
+					}
+				}
+			}
+			catch (Exception ex) {
+				Console.WriteLine("Printer detection failed: " + ex.Message);
+			}
+
+			return false;
+		}
+
+		static bool PrintPdf(string pdfPath, string printerName, bool isThermal)
+		{
+			try
+			{
+				var process = new Process();
+				if (isThermal)
+				{
+					// Ghostscript: send PDF to Windows printer using mswinpr2 device
+					process.StartInfo.FileName = "gswin64c.exe"; // or "gs" if in PATH
+
+					// Paper size configuration
+					string paperSize = "4x6"; // from printers.json
+					int widthPoints = 288, heightPoints = 432; // defaults
+
+					if (Regex.IsMatch(paperSize, @"^(\d+(\.\d+)?)x(\d+(\.\d+)?)$")) {
+						var parts = paperSize.Split('x');
+						double widthInches = double.Parse(parts[0], System.Globalization.CultureInfo.InvariantCulture);
+						double heightInches = double.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture);
+						widthPoints = (int)(widthInches * 72);
+						heightPoints = (int)(heightInches * 72);
+					}
+
+					// Then build Ghostscript args:
+					process.StartInfo.Arguments =
+						$"-dPrinted -dNOPAUSE -dBATCH -sDEVICE=mswinpr2 -sPAPERSIZE=custom -dDEVICEWIDTHPOINTS={widthPoints} -dDEVICEHEIGHTPOINTS={heightPoints} -sOutputFile=\"\\\\spool\\{printerName}\" \"{pdfPath}\"";
+				}
+				else
+				{
+					// LibreOffice: print PDF to printer
+					process.StartInfo.FileName = "soffice";
+					process.StartInfo.Arguments = $"--headless --pt \"{printerName}\" \"{pdfPath}\"";
+				}
+				process.StartInfo.CreateNoWindow = true;
+				process.StartInfo.UseShellExecute = false;
+				process.StartInfo.RedirectStandardOutput = true;
+				process.StartInfo.RedirectStandardError = true;
+
+				process.Start();
+				string output = process.StandardOutput.ReadToEnd();
+				string error = process.StandardError.ReadToEnd();
+				process.WaitForExit();
+
+				if (process.ExitCode != 0)
+				{
+					Console.WriteLine($"Print error: {error}");
+					return false;
+				}
+				return true;
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine($"Print dispatch failed: {ex.Message}");
+				return false;
+			}
 		}
 	}
 }

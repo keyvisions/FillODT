@@ -84,8 +84,50 @@ See [template.odt](https://github.com/keyvisions/FillODT/blob/master/template.od
 
 ---
 
+## Print Capabilities
+
+FillODT can send the generated PDF directly to a printer, supporting both standard and thermal printers.
+
+### How It Works
+
+- Use the `--print "<printer name>"` option to send the output PDF to a printer after generation.
+- FillODT automatically detects if the printer is a thermal printer (e.g., Zebra, Bixolon) and optimizes the PDF using Ghostscript if needed.
+- Printer profiles and advanced options (copies, duplex, color mode, paper size, etc.) can be configured in `printers.json`.
+
+### Example Usage
+
+```sh
+FillODT.exe --template [template.odt](http://_vscodecontentref_/0) --json [data.json](http://_vscodecontentref_/1) --destfile output.odt --print "HP LaserJet M1536"
+```
+
+## Printer Configuration Example
+
+Here is an example of a printer configuration that can be used with FillODT:
+
+```json
+{
+  "label": "Test HP M1536",
+  "printerName": "HP LaserJet M1536",
+  "ghostscriptProfile": "/screen",
+  "optimizePdf": true,
+  "copies": 1,
+  "paperSize": "A4",
+  "docType": "Test",
+  "driverConfig": {
+    "duplex": true,
+    "colorMode": "black-and-white"
+  }
+}
+```
+
+For custom label sizes, FillODT automatically translates sizes like "4x6" to the correct printer settings.
+
+---
+
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 This project was developed with the assistance of GitHub Copilot.
+
+---
