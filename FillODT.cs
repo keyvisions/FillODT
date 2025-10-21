@@ -368,12 +368,18 @@ namespace FillODT {
 
 					// Download image if it's an HTTPS URL
 					if (imagePath.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) {
-						using var httpClient = new HttpClient();
-						var imageBytes = httpClient.GetByteArrayAsync(imagePath).Result;
-						imageFileName = $"{key}_{Path.GetFileName(new Uri(imagePath).AbsolutePath)}";
-						destImagePath = Path.Combine(picturesDir, imageFileName);
-						File.WriteAllBytes(destImagePath, imageBytes);
-						TryResizeImage(destImagePath);
+						try {
+							using var httpClient = new HttpClient();
+							var imageBytes = httpClient.GetByteArrayAsync(imagePath).Result;
+							imageFileName = $"{key}_{Path.GetFileName(new Uri(imagePath).AbsolutePath)}";
+							destImagePath = Path.Combine(picturesDir, imageFileName);
+							File.WriteAllBytes(destImagePath, imageBytes);
+							TryResizeImage(destImagePath);
+						}
+						catch (Exception) {
+							// Skip image if download fails
+							continue;
+						}
 					}
 					else if (imagePath.StartsWith("qrcode://", StringComparison.OrdinalIgnoreCase)) {
 						using QRCoder.QRCodeGenerator qrGenerator = new QRCoder.QRCodeGenerator();
